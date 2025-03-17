@@ -457,18 +457,20 @@ export default function MapView({
     photos.forEach(photo => {
       if (photo.lat !== null && photo.lon !== null) {
         const isSelected = selectedPhoto?.id === photo.id;
+        // Если точка находится ближе 25 метров к другой, подсвечиваем её особым цветом
+        const isVeryClose = photo.isVeryClose;
         const markerIcon = L.divIcon({
           html: `<div style="
-            background-color: ${isSelected ? '#ff9500' : '#007bff'};
-            width: 12px;
-            height: 12px;
+            background-color: ${isSelected ? '#ff9500' : isVeryClose ? '#ff0000' : '#007bff'};
+            width: ${isVeryClose ? '14px' : '12px'};
+            height: ${isVeryClose ? '14px' : '12px'};
             border-radius: 50%;
             border: 2px solid white;
-            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+            box-shadow: ${isVeryClose ? '0 0 8px rgba(255,0,0,0.7)' : '0 0 4px rgba(0,0,0,0.3)'};
           "></div>`,
           className: '',
-          iconSize: [16, 16],
-          iconAnchor: [8, 8]
+          iconSize: [isVeryClose ? 18 : 16, isVeryClose ? 18 : 16],
+          iconAnchor: [isVeryClose ? 9 : 8, isVeryClose ? 9 : 8]
         });
         
         const marker = L.marker([photo.lat, photo.lon], { icon: markerIcon });

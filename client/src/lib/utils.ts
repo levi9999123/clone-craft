@@ -70,8 +70,10 @@ export function findDuplicates(photos: Photo[]): Photo[][] {
         comparePhoto.lon as number
       );
       
-      // Точки на расстоянии менее 25 метров (0.025 км) считаются близкими
-      if (distance < 0.025) { // 25 meters
+      // Точки на расстоянии менее 25 метров считаются близкими
+      // distance возвращается в километрах, поэтому умножаем на 1000 для метров
+      const distanceInMeters = distance * 1000;
+      if (distanceInMeters < 25) { // 25 meters
         duplicates.push(comparePhoto);
         // Добавляем информацию о расстоянии для отображения
         comparePhoto.distance = distance;
@@ -97,7 +99,7 @@ export function findDuplicates(photos: Photo[]): Photo[][] {
 }
 
 // Find photos near a reference photo
-export function findNearbyPhotos(photos: Photo[], referencePhoto: Photo, maxDistance = 1): Photo[] {
+export function findNearbyPhotos(photos: Photo[], referencePhoto: Photo, maxDistanceKm = 1): Photo[] {
   // Проверяем, что у опорной фотографии есть координаты
   if (referencePhoto.lat === null || referencePhoto.lon === null) return [];
   
@@ -116,8 +118,15 @@ export function findNearbyPhotos(photos: Photo[], referencePhoto: Photo, maxDist
         photo.lon as number
       );
       
+      // Добавляем информацию о расстоянии (в км)
       photo.distance = distance;
-      return distance <= maxDistance;
+      
+      // Подсвечиваем особым образом точки, находящиеся ближе 25 метров (0.025 км)
+      if (distance * 1000 < 25) {
+        photo.isVeryClose = true;
+      }
+      
+      return distance <= maxDistanceKm;
     })
     .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 }
@@ -133,4 +142,5 @@ export interface Photo {
   distance?: number;
   hasNearbyObjects?: boolean;
   nearbyObjectsCount?: number;
+  isVeryClose?: boolean; // Флаг для фото, находящихся в пределах 25 метров
 }
