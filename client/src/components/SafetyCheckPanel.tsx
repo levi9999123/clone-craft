@@ -105,15 +105,22 @@ export default function SafetyCheckPanel({
     }
   };
   
-  // Проверка одной фотографии
+  // Проверка одной фотографии с улучшенной обработкой и учетом границ объектов
   const checkSinglePhoto = async (photo: Photo) => {
     if (!photo.lat || !photo.lon) return;
     
     setIsLoading(true);
     
     try {
-      // Проверяем API для этой фотографии
-      const objects = await checkLocationSafety(photo.lat, photo.lon);
+      // Используем улучшенную проверку безопасности
+      // Импортируем функцию из SafetyCheckService для проверки с учетом границ объектов
+      const { checkLocationSafety: checkPhotoSafety } = await import('./SafetyCheckService');
+      
+      // Запускаем проверку, передавая фото целиком
+      const result = await checkPhotoSafety(photo);
+      
+      // Получаем список объектов из результата
+      const objects = result.restrictedObjects || [];
       
       // Сохраняем результаты
       const newCheckedPhotos = new Map(checkedPhotos);
@@ -122,7 +129,12 @@ export default function SafetyCheckPanel({
       
       // Выбираем эту фотографию для отображения результатов
       selectPhoto(photo);
+      setSortedObjects(objects);
       
+      // Выводим предупреждение и количество найденных объектов
+      if (result.warningMessage) {
+        console.log(result.warningMessage);
+      }
       console.log(`Обнаружено объектов вблизи: ${objects.length}`);
     } catch (error) {
       console.error("Ошибка при проверке фотографии:", error);
@@ -131,7 +143,7 @@ export default function SafetyCheckPanel({
     }
   };
   
-  // Проверка всех фотографий с индикатором прогресса
+  // Проверка всех фотографий с индикатором прогресса и учетом границ объектов
   const checkAllPhotos = async () => {
     // Фильтруем только фотографии с координатами
     const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
@@ -142,6 +154,9 @@ export default function SafetyCheckPanel({
     setIsLoading(true);
     
     try {
+      // Получаем улучшенную реализацию функции проверки
+      const { checkLocationSafety: checkPhotoSafety } = await import('./SafetyCheckService');
+      
       const results = new Map<number, NearbyObject[]>();
       const total = photosWithCoords.length;
       
@@ -171,15 +186,18 @@ export default function SafetyCheckPanel({
         updateProgress(i, photo.name);
         
         try {
-          // Проверяем API для этой фотографии
-          const objects = await checkLocationSafety(photo.lat, photo.lon);
+          // Используем новую функцию проверки, которая учитывает границы объектов
+          const result = await checkPhotoSafety(photo);
+          const objects = result.restrictedObjects || [];
+          
+          // Сохраняем результаты
           results.set(photo.id, objects);
           
           console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
           
-          // Добавляем задержку 300мс между запросами, чтобы не перегружать Overpass API
+          // Добавляем задержку 500мс между запросами, чтобы не перегружать Overpass API
           if (i < photosWithCoords.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
         } catch (error) {
           console.error(`Ошибка при проверке фото ${photo.name}:`, error);

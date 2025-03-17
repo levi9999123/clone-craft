@@ -119,36 +119,68 @@ export interface SafetyCheckResult {
   warningMessage?: string;
 }
 
-// Заглушка для проверки безопасности
-// В реальном приложении здесь должен быть вызов API для получения данных о ближайших объектах
+// Функция проверки безопасности местоположения с использованием API
 export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResult> {
-  // Это заглушка, которая должна быть заменена на реальную функциональность
-  // с использованием API (OpenStreetMap, Google Maps API или другие)
-  
-  // В реальном приложении надо:
-  // 1. Получить список ближайших объектов через API
-  // 2. Отфильтровать объекты по типу
-  // 3. Вычислить расстояния
-  // 4. Определить безопасность на основе правил
-  
-  // Возвращаем заглушку результата
-  return {
-    isSafe: true,
-    restrictedObjects: []
-  };
+  // Проверяем, есть ли координаты у фотографии
+  if (!photo.lat || !photo.lon) {
+    return {
+      isSafe: true,
+      restrictedObjects: [],
+      warningMessage: "Невозможно проверить безопасность без координат"
+    };
+  }
+
+  try {
+    // Используем API для получения объектов поблизости
+    const objects = await fetchNearbyObjects(photo.lat, photo.lon);
+    console.log(`Обнаружено объектов вблизи: ${objects.length}`);
+    
+    // Проверяем, есть ли объекты в опасной близости
+    const unsafeObjects = objects.filter(obj => !isSafeDistance(obj.distance));
+    
+    return {
+      isSafe: unsafeObjects.length === 0,
+      restrictedObjects: objects,
+      warningMessage: unsafeObjects.length > 0 
+        ? `Обнаружено ${unsafeObjects.length} объектов в опасной близости (менее ${MINIMUM_SAFE_DISTANCE} метров)`
+        : objects.length > 0
+          ? `Все объекты на безопасном расстоянии (более ${MINIMUM_SAFE_DISTANCE} метров)` 
+          : "Запрещенных объектов поблизости не обнаружено"
+    };
+  } catch (error) {
+    console.error("Ошибка при проверке безопасности:", error);
+    return {
+      isSafe: false,
+      restrictedObjects: [],
+      warningMessage: "Ошибка при проверке безопасности. Попробуйте еще раз."
+    };
+  }
 }
 
-// Функция для добавления проверки объектов API в реальном приложении
-// Здесь в будущем должна быть реализация вызова к геокодеру или API с точками интереса
-export async function fetchNearbyObjects(lat: number, lon: number, radius: number = 100): Promise<NearbyObject[]> {
-  // Здесь должен быть вызов к Overpass API (OpenStreetMap) или другому API
-  // для получения ближайших объектов определенных типов
+// Функция получения объектов вблизи заданной точки
+export async function fetchNearbyObjects(lat: number, lon: number, radius: number = 200): Promise<NearbyObject[]> {
+  if (!lat || !lon) return [];
   
-  // Пример запроса к Overpass API для получения ближайших школ, полицейских участков и т.д.
-  // Это только шаблон, который нужно заполнить реальной логикой вызова API
-  
-  // Возвращаем пустой массив как заглушку
-  return [];
+  try {
+    // Импортируем функцию из файла overpassService
+    const { checkLocationSafety } = await import('../services/overpassService');
+    
+    // Получаем данные из Overpass API
+    const objects = await checkLocationSafety(lat, lon, radius);
+    
+    // Если у объектов нет расстояния, вычисляем его
+    objects.forEach(obj => {
+      if (!obj.distance && obj.lat && obj.lon) {
+        obj.distance = calculateDistanceInMeters(lat, lon, obj.lat, obj.lon);
+      }
+    });
+    
+    // Сортируем объекты по расстоянию (ближайшие в начале)
+    return objects.sort((a, b) => a.distance - b.distance);
+  } catch (error) {
+    console.error("Ошибка при получении объектов поблизости:", error);
+    return [];
+  }
 }
 
 // Функция обогащения списка объектов информацией о типе
