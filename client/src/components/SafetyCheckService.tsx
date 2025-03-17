@@ -203,8 +203,7 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
   }
 }
 
-// Кэш для хранения результатов запросов к Overpass API
-const nearbyObjectsCache: {[key: string]: {objects: NearbyObject[], timestamp: number}} = {};
+// Больше не используем кэширование для Overpass API запросов
 
 // Функция получения объектов вблизи заданной точки
 // Теперь всегда используем свежие данные без кэширования
@@ -212,11 +211,15 @@ export async function fetchNearbyObjects(lat: number, lon: number, radius: numbe
   if (!lat || !lon) return [];
   
   try {
+    console.log(`Запрос к Overpass API с координатами ${lat}, ${lon} и радиусом ${radius}м`);
+    
     // Импортируем функцию из файла overpassService
     const { checkLocationSafety } = await import('../services/overpassService');
     
     // Получаем данные из Overpass API с фиксированным радиусом 100 метров
+    // Всегда используем свежие данные, без кэширования
     const objects = await checkLocationSafety(lat, lon, radius);
+    console.log(`Получено ${objects.length} объектов от API`);
     
     // Если у объектов нет расстояния, вычисляем его
     objects.forEach(obj => {
@@ -228,7 +231,7 @@ export async function fetchNearbyObjects(lat: number, lon: number, radius: numbe
     // Сортируем объекты по расстоянию (ближайшие в начале)
     const sortedObjects = objects.sort((a, b) => a.distance - b.distance);
     
-    // Всегда возвращаем свежие данные, без сохранения в кэш
+    // Всегда возвращаем свежие данные
     return sortedObjects;
   } catch (error) {
     console.error("Ошибка при получении объектов поблизости:", error);
