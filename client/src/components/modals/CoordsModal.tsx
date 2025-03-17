@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
 import { formatCoordinates as formatUtilsCoordinates } from '@/lib/utils';
-import { formatCoordinates, CoordinateFormat } from '@/services/coordinateService';
+import { 
+  formatCoordinates, 
+  CoordinateFormat, 
+  parseCoordinates, 
+  isValidCoordinateString 
+} from '@/services/coordinateService';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 
@@ -41,14 +46,11 @@ export default function CoordsModal({ onClose }: CoordsModalProps) {
     
     // Проверяем валидность введенных координат
     try {
-      // Импортируем функцию из сервиса координат
-      const { parseCoordinates: parseCoordinatesFromService, isValidCoordinateString } = require('@/services/coordinateService');
-      
       const isValid = isValidCoordinateString(value);
       setInputStatus(isValid ? 'valid' : (value ? 'invalid' : 'idle'));
       
       if (isValid) {
-        const coords = parseCoordinatesFromService(value);
+        const coords = parseCoordinates(value);
         setParsedCoords(coords);
       } else {
         setParsedCoords({ lat: null, lon: null });
