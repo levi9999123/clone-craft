@@ -205,9 +205,13 @@ export default function SafetyCheckPanel({
     }
   };
   
-  // Функция для проверки нескольких выбранных фотографий
+  // Функция для проверки нескольких выбранных фотографий (больше не используется напрямую)
   const checkSelectedPhotos = async () => {
-    // Получаем выбранные фотографии
+    // Этот код больше не используется, так как мы убрали модальное окно выбора
+    // и теперь сразу проверяем все фотографии через checkAllPhotos
+    console.log("Используйте checkAllPhotos вместо этой функции");
+    
+    // Проверка ниже сохранена для совместимости
     const selectedPhotos = photos.filter(p => 
       p.lat !== null && p.lon !== null && selectedPhotoIds.has(p.id)
     );
@@ -380,6 +384,7 @@ export default function SafetyCheckPanel({
     setIsCheckModalOpen(true);
     setShowSelectMode(true);
   };
+  };
   
   // Определение общего статуса безопасности
   const getPhotoSafetyStatus = (objects: NearbyObject[] | undefined) => {
@@ -509,92 +514,7 @@ export default function SafetyCheckPanel({
         </div>
       </div>
       
-      {/* Модальное окно выбора фотографий для проверки */}
-      {isCheckModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50">
-          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Выберите фотографии для проверки</h3>
-              <button 
-                onClick={() => {
-                  setIsCheckModalOpen(false);
-                  setShowSelectMode(false); 
-                }}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-
-            <div className="mb-4 flex space-x-3">
-              <Button 
-                variant="outline" 
-                onClick={selectAllPhotos}
-              >
-                Выбрать все
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={deselectAllPhotos}
-              >
-                Снять выделение
-              </Button>
-              <div className="flex-grow"></div>
-              <Button 
-                variant="destructive" 
-                onClick={() => {
-                  setIsCheckModalOpen(false);
-                  setShowSelectMode(false);
-                }}
-              >
-                Отмена
-              </Button>
-              <Button 
-                variant="default" 
-                onClick={checkSelectedPhotos}
-                disabled={selectedPhotoIds.size === 0}
-              >
-                Проверить выбранные ({selectedPhotoIds.size})
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {photosWithCoords.map(photo => (
-                <div 
-                  key={photo.id}
-                  className={`relative rounded overflow-hidden cursor-pointer border-2 
-                    ${selectedPhotoIds.has(photo.id) ? 'border-primary' : 'border-transparent'}`}
-                  onClick={() => togglePhotoSelection(photo.id)}
-                >
-                  {photo.dataUrl ? (
-                    <img 
-                      src={photo.dataUrl} 
-                      alt={photo.name} 
-                      className="w-full h-24 object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-24 bg-gray-100 flex items-center justify-center">
-                      <i className="fas fa-image text-gray-400"></i>
-                    </div>
-                  )}
-                  
-                  <div className="absolute top-2 left-2">
-                    <Checkbox 
-                      checked={selectedPhotoIds.has(photo.id)}
-                      className="bg-white border-2 border-primary rounded"
-                      onCheckedChange={() => togglePhotoSelection(photo.id)}
-                    />
-                  </div>
-                  
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-1 text-xs truncate">
-                    {photo.name}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Убрали модальное окно выбора фотографий для проверки */}
       
       {/* Список проверенных фотографий */}
       {checkedPhotos.size > 0 && (
@@ -724,28 +644,27 @@ export default function SafetyCheckPanel({
               
               <div className="space-y-2">
                 {/* Показываем только один объект - самый ближайший */}
-                {currentObjectsToShow.length > 0 && (
-                  <div 
-                    key={currentObjectsToShow[0].id}
-                    className="p-3 rounded-md transition-all mb-3"
-                    style={{
-                      backgroundColor: 'var(--bg)',
-                      border: '1px solid var(--border)',
-                      boxShadow: '0 1px 3px var(--shadow)',
-                      borderLeft: `4px solid ${isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success)' : 'var(--error)'}`
-                    }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="font-medium mr-2 flex-1">{currentObjectsToShow[0].name || 'Здание'}</div>
-                      <div className="text-sm font-bold whitespace-nowrap" 
-                        style={{ 
-                          color: isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success)' : 'var(--error)' 
-                        }}
-                      >
-                        {currentObjectsToShow[0].distance.toFixed(1)} м
-                      </div>
+                <div 
+                  key={currentObjectsToShow[0].id}
+                  className="p-3 rounded-md transition-all mb-3"
+                  style={{
+                    backgroundColor: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 1px 3px var(--shadow)',
+                    borderLeft: `4px solid ${isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success)' : 'var(--error)'}`
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="font-medium mr-2 flex-1">{currentObjectsToShow[0].name || 'Здание'}</div>
+                    <div className="text-sm font-bold whitespace-nowrap" 
+                      style={{ 
+                        color: isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success)' : 'var(--error)' 
+                      }}
+                    >
+                      {currentObjectsToShow[0].distance.toFixed(1)} м
                     </div>
-                      
+                  </div>
+                    
                     {currentObjectsToShow[0].type && currentObjectsToShow[0].type !== 'Не определен' && (
                       <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                         <span className="inline-block bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 mr-1">
@@ -753,7 +672,7 @@ export default function SafetyCheckPanel({
                         </span>
                       </div>
                     )}
-                      
+                    
                     <div className="text-xs mt-2 flex justify-between items-center" style={{ color: 'var(--text-secondary)' }}>
                       <div>
                         Координаты: {currentObjectsToShow[0].lat?.toFixed(5)}, {currentObjectsToShow[0].lon?.toFixed(5)}
@@ -770,7 +689,6 @@ export default function SafetyCheckPanel({
                       </div>
                     </div>
                   </div>
-                )}
               </div>
             </div>
           )}
