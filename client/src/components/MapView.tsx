@@ -457,20 +457,47 @@ export default function MapView({
     photos.forEach(photo => {
       if (photo.lat !== null && photo.lon !== null) {
         const isSelected = selectedPhoto?.id === photo.id;
-        // Если точка находится ближе 25 метров к другой, подсвечиваем её особым цветом
+        // Проверяем различные условия для маркера
         const isVeryClose = photo.isVeryClose;
+        const hasRestrictedObjects = photo.restrictedObjectsNearby;
+        
+        // Определяем цвет маркера в зависимости от условий
+        let markerColor, markerSize, shadowColor;
+        
+        if (isSelected) {
+          // Выбранный маркер всегда оранжевый
+          markerColor = '#ff9500';
+          markerSize = 14;
+          shadowColor = '0 0 6px rgba(255,149,0,0.8)';
+        } else if (hasRestrictedObjects) {
+          // Маркер с нарушением правил безопасности (возле запрещенных объектов)
+          markerColor = '#9c27b0'; // Пурпурный цвет для запрещенных объектов
+          markerSize = 14;
+          shadowColor = '0 0 8px rgba(156,39,176,0.7)';
+        } else if (isVeryClose) {
+          // Маркер рядом с другими точками (менее 25м)
+          markerColor = '#ff0000';
+          markerSize = 14;
+          shadowColor = '0 0 8px rgba(255,0,0,0.7)';
+        } else {
+          // Обычный маркер
+          markerColor = '#007bff';
+          markerSize = 12;
+          shadowColor = '0 0 4px rgba(0,0,0,0.3)';
+        }
+        
         const markerIcon = L.divIcon({
           html: `<div style="
-            background-color: ${isSelected ? '#ff9500' : isVeryClose ? '#ff0000' : '#007bff'};
-            width: ${isVeryClose ? '14px' : '12px'};
-            height: ${isVeryClose ? '14px' : '12px'};
+            background-color: ${markerColor};
+            width: ${markerSize}px;
+            height: ${markerSize}px;
             border-radius: 50%;
             border: 2px solid white;
-            box-shadow: ${isVeryClose ? '0 0 8px rgba(255,0,0,0.7)' : '0 0 4px rgba(0,0,0,0.3)'};
+            box-shadow: ${shadowColor};
           "></div>`,
           className: '',
-          iconSize: [isVeryClose ? 18 : 16, isVeryClose ? 18 : 16],
-          iconAnchor: [isVeryClose ? 9 : 8, isVeryClose ? 9 : 8]
+          iconSize: [markerSize + 4, markerSize + 4],
+          iconAnchor: [(markerSize + 4)/2, (markerSize + 4)/2]
         });
         
         const marker = L.marker([photo.lat, photo.lon], { icon: markerIcon });
@@ -496,7 +523,37 @@ export default function MapView({
                 display: none;
               ">✓</span>
             </div>
+            
             ${photo.dataUrl ? `<img src="${photo.dataUrl}" alt="${photo.name}" style="max-width: 100px; max-height: 100px; margin-top: 5px; border-radius: 3px;">` : ''}
+            
+            ${photo.isVeryClose ? `
+              <div style="
+                margin-top: 8px;
+                padding: 4px;
+                background-color: rgba(255,0,0,0.1);
+                border-left: 3px solid #ff0000;
+                text-align: left;
+                font-size: 12px;
+              ">
+                <i class="fas fa-exclamation-triangle" style="color: #ff0000;"></i> 
+                <strong>Внимание:</strong> Есть другие точки ближе 25 метров
+              </div>
+            ` : ''}
+            
+            ${photo.restrictedObjectsNearby ? `
+              <div style="
+                margin-top: ${photo.isVeryClose ? '4px' : '8px'};
+                padding: 4px;
+                background-color: rgba(156,39,176,0.1);
+                border-left: 3px solid #9c27b0;
+                text-align: left;
+                font-size: 12px;
+              ">
+                <i class="fas fa-shield-alt" style="color: #9c27b0;"></i> 
+                <strong>Нарушение:</strong> Запрещенные объекты на расстоянии менее 50м
+                ${photo.nearbyObjectsCount ? `<br><span style="font-size: 11px;">Найдено объектов: ${photo.nearbyObjectsCount}</span>` : ''}
+              </div>
+            ` : ''}
           </div>
         `);
         
@@ -711,7 +768,7 @@ export default function MapView({
         <div className="flex items-center mb-2">
           <div className="w-5 h-5 rounded-full mr-2" 
             style={{ 
-              backgroundColor: 'var(--primary)', 
+              backgroundColor: '#007bff', // Обычный синий цвет маркеров
               border: '2px solid var(--bg)', 
               boxShadow: '0 0 4px var(--shadow)' 
             }}></div>
@@ -720,20 +777,29 @@ export default function MapView({
         <div className="flex items-center mb-2">
           <div className="w-5 h-5 rounded-full mr-2" 
             style={{ 
-              backgroundColor: 'var(--accent)', 
+              backgroundColor: '#ff9500', // Оранжевый для выбранных 
               border: '2px solid var(--bg)', 
-              boxShadow: '0 0 4px var(--shadow)' 
+              boxShadow: '0 0 6px rgba(255,149,0,0.7)' 
             }}></div>
           <span className="font-semibold">Выбранное фото</span>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center mb-2">
           <div className="w-6 h-6 rounded-full mr-2" 
             style={{ 
-              backgroundColor: '#ff0000', 
+              backgroundColor: '#ff0000', // Красный для близких точек
               border: '2px solid var(--bg)', 
               boxShadow: '0 0 8px rgba(255,0,0,0.7)' 
             }}></div>
           <span className="font-semibold">Близкие точки (менее 25м)</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-6 h-6 rounded-full mr-2" 
+            style={{ 
+              backgroundColor: '#9c27b0', // Пурпурный для запрещенных объектов
+              border: '2px solid var(--bg)', 
+              boxShadow: '0 0 8px rgba(156,39,176,0.7)' 
+            }}></div>
+          <span className="font-semibold">У запрещенных объектов (менее 50м)</span>
         </div>
       </div>
       

@@ -140,10 +140,10 @@ export default function SafetyCheckPanel({
       setSortedObjects(objects);
       
       // Обновляем маркеры на карте, чтобы показать новый статус
-      if (window.mapInstance) {
+      if ((window as any).mapInstance) {
         setTimeout(() => {
-          if (window.mapInstance && window.mapInstance.invalidateSize) {
-            window.mapInstance.invalidateSize();
+          if ((window as any).mapInstance && (window as any).mapInstance.invalidateSize) {
+            (window as any).mapInstance.invalidateSize();
           }
         }, 100);
       }
