@@ -198,6 +198,34 @@ div[class*="p-4 bg-gray-50"] button,
   transition: transform 0.2s, background-color 0.2s !important;
   z-index: 10 !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
+  color: white !important;
+}
+
+/* Текст и иконки внутри кнопок должны быть контрастными и видимыми */
+button i,
+.button i,
+button span, 
+.button span,
+.photo-button i,
+.safety-check-all-btn i,
+.safety-check-all-btn span,
+.safety-check-current-btn i,
+.safety-check-current-btn span,
+.url-submit-btn i,
+.url-submit-btn span,
+.coords-copy-btn i {
+  color: white !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Серые кнопки требуют темного текста */
+button[class*="bg-gray"] i,
+button[class*="bg-gray"] span,
+.cancel-btn i,
+.cancel-btn span {
+  color: #333 !important;
 }
 
 /* Круглые кнопки на карте */
