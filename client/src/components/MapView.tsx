@@ -21,39 +21,76 @@ export default function MapView({
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainerRef.current || mapInitialized) return;
-    if (typeof window === 'undefined' || !window.L) return;
-
-    const L = window.L;
-
-    // Create map
-    const map = L.map(mapContainerRef.current).setView([55.7558, 37.6173], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+    if (mapInitialized) return;
     
-    // Create marker cluster group
-    try {
-      // Check if markerCluster is available in the global scope
-      const markers = L.markerClusterGroup ? L.markerClusterGroup() : L.layerGroup();
-      map.addLayer(markers);
+    // Проверим наличие Leaflet в глобальной области
+    const initMap = () => {
+      if (!mapContainerRef.current) return;
+      if (typeof window === 'undefined' || !window.L) {
+        console.error("Leaflet не найден в глобальной области!");
+        return;
+      }
       
-      mapRef.current = map;
-      markersRef.current = markers;
-      setMapInitialized(true);
-    } catch (error) {
-      console.error("Error initializing marker cluster:", error);
-      // Fallback to regular layer group if markerClusterGroup is not available
-      const markers = L.layerGroup();
-      map.addLayer(markers);
-      
-      mapRef.current = map;
-      markersRef.current = markers;
-      setMapInitialized(true);
-    }
-
+      try {
+        console.log("Инициализация карты Leaflet...");
+        const L = window.L;
+        
+        // Создаем карту с явными размерами
+        const mapElement = mapContainerRef.current;
+        
+        // Проверяем, имеет ли контейнер карты нормальный размер
+        console.log("Размеры контейнера карты:", 
+          mapElement.offsetWidth, 
+          mapElement.offsetHeight
+        );
+        
+        // Создание карты
+        const map = L.map(mapElement, {
+          center: [55.7558, 37.6173],
+          zoom: 6,
+          zoomControl: true
+        });
+        
+        // Добавление тайлов OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19
+        }).addTo(map);
+        
+        // Создание группы маркеров
+        let markers;
+        if (typeof L.markerClusterGroup === 'function') {
+          console.log("Используем MarkerClusterGroup");
+          markers = L.markerClusterGroup();
+        } else {
+          console.log("MarkerClusterGroup недоступен, используем LayerGroup");
+          markers = L.layerGroup();
+        }
+        
+        map.addLayer(markers);
+        
+        // Перерасчет размера карты после инициализации
+        map.invalidateSize();
+        
+        mapRef.current = map;
+        markersRef.current = markers;
+        setMapInitialized(true);
+        
+        console.log("Карта создана успешно!");
+      } catch (error) {
+        console.error("Ошибка при инициализации карты:", error);
+      }
+    };
+    
+    // Задержка инициализации карты для уверенности, что DOM загружен
+    const timerId = setTimeout(() => {
+      initMap();
+    }, 100);
+    
     return () => {
+      clearTimeout(timerId);
       if (mapRef.current) {
+        console.log("Удаление карты...");
         mapRef.current.remove();
         mapRef.current = null;
         markersRef.current = null;
@@ -129,8 +166,8 @@ export default function MapView({
   }, [selectedPhoto]);
 
   return (
-    <div id="map-container" className="flex-grow relative">
-      <div id="map" ref={mapContainerRef} className="h-full w-full"></div>
+    <div id="map-container" className="flex-grow relative" style={{ minHeight: '100%', minWidth: '100%' }}>
+      <div id="map" ref={mapContainerRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10 }}></div>
       
       <div className="absolute top-3 right-3 space-x-2 z-[1000]">
         <button 

@@ -54,7 +54,7 @@ export default function Home() {
         hideLoading={hideLoading}
       />
       
-      <div className="flex-grow flex relative">
+      <div className="flex-grow flex relative" style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
         <MapView 
           onToggleNearbyPanel={() => togglePanel('nearby')}
           onToggleDuplicatePanel={() => togglePanel('duplicate')}
