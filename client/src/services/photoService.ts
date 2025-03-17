@@ -91,18 +91,46 @@ export async function processFile(file: File): Promise<Photo> {
 // Process multiple files with progress tracking and safety check
 export async function processFiles(files: File[], onProgress?: (current: number) => void): Promise<Photo[]> {
   const photos: Photo[] = [];
+  const imageFiles = files.filter(file => file.type.startsWith('image/'));
   
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    if (file.type.startsWith('image/')) {
-      const photo = await processFile(file);
-      photos.push(photo);
-      
-      // Если есть координаты, проверяем безопасность
-      if (photo.lat !== null && photo.lon !== null) {
+  // Обработка файлов пакетами для ускорения загрузки
+  const BATCH_SIZE = 5; // Обрабатываем до 5 файлов одновременно
+  let completedCount = 0;
+  
+  for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
+    // Берем текущий пакет файлов
+    const batch = imageFiles.slice(i, i + BATCH_SIZE);
+    
+    // Обрабатываем все файлы в пакете параллельно
+    const batchResults = await Promise.all(
+      batch.map(async file => {
+        const photo = await processFile(file);
+        completedCount++;
+        
+        if (onProgress) {
+          onProgress(completedCount);
+        }
+        
+        return photo;
+      })
+    );
+    
+    // Добавляем результаты в общий массив
+    photos.push(...batchResults);
+  }
+  
+  // Параллельно выполняем проверку безопасности для всех фотографий с координатами
+  const photosWithCoords = photos.filter(photo => photo.lat !== null && photo.lon !== null);
+  
+  if (photosWithCoords.length > 0) {
+    console.log(`Начало параллельной проверки безопасности для ${photosWithCoords.length} фотографий...`);
+    
+    // Выполняем все проверки безопасности параллельно
+    const safetyChecks = await Promise.allSettled(
+      photosWithCoords.map(async photo => {
         try {
           console.log(`Проверка безопасности для фото ${photo.name}...`);
-          const nearbyObjects = await checkLocationSafety(photo.lat, photo.lon);
+          const nearbyObjects = await checkLocationSafety(photo.lat as number, photo.lon as number);
           
           if (nearbyObjects.length > 0) {
             // Добавляем флаг небезопасности к фотографии, если есть объекты рядом
@@ -113,15 +141,17 @@ export async function processFiles(files: File[], onProgress?: (current: number)
             photo.hasNearbyObjects = false;
             console.log(`Фото ${photo.name}: объектов поблизости не обнаружено`);
           }
+          return { photo, success: true };
         } catch (error) {
           console.error(`Не удалось выполнить проверку безопасности для фото ${photo.name}:`, error);
+          return { photo, success: false, error };
         }
-      }
-      
-      if (onProgress) {
-        onProgress(i + 1);
-      }
-    }
+      })
+    );
+    
+    console.log(`Завершение параллельной проверки безопасности: успешно ${
+      safetyChecks.filter(result => result.status === 'fulfilled').length
+    } из ${safetyChecks.length}`);
   }
   
   return photos;
@@ -130,30 +160,51 @@ export async function processFiles(files: File[], onProgress?: (current: number)
 // Process image from URL
 export async function processUrl(url: string): Promise<Photo | null> {
   try {
-    const response = await fetch('/api/upload-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
+    console.log(`Начало обработки URL: ${url}`);
     
+    // Выполняем оба запроса параллельно для ускорения
+    const [responsePromise, imageResponsePromise] = await Promise.allSettled([
+      // Запрос на обработку URL сервером для извлечения координат
+      fetch('/api/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      }),
+      
+      // Одновременно пытаемся загрузить само изображение для превью
+      fetch(url, {
+        headers: { 'Accept': 'image/*' }
+      })
+    ]);
+    
+    // Обрабатываем результат извлечения координат
+    if (responsePromise.status === 'rejected') {
+      throw new Error(`Ошибка при обработке URL: ${responsePromise.reason}`);
+    }
+    
+    const response = responsePromise.value;
     if (!response.ok) {
-      throw new Error(`Failed to process URL: ${response.statusText}`);
+      throw new Error(`Ошибка при обработке URL: ${response.status} - ${response.statusText}`);
     }
     
     const result = await response.json();
     
-    // Try to fetch the image to get a data URL
+    // Пытаемся получить изображение для предпросмотра
     let dataUrl: string | undefined;
-    try {
-      const imageResponse = await fetch(url);
-      const blob = await imageResponse.blob();
-      dataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
-    } catch (e) {
-      console.error('Error fetching image from URL:', e);
+    if (imageResponsePromise.status === 'fulfilled') {
+      try {
+        const imageResponse = imageResponsePromise.value;
+        if (imageResponse.ok) {
+          const blob = await imageResponse.blob();
+          dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (e) {
+        console.error('Ошибка при получении предпросмотра изображения:', e);
+      }
     }
     
     const photo = {
@@ -167,28 +218,30 @@ export async function processUrl(url: string): Promise<Photo | null> {
       nearbyObjectsCount: 0
     };
     
-    // Если есть координаты, проверяем безопасность
+    // Если есть координаты, проверяем безопасность параллельно с остальной обработкой
     if (photo.lat !== null && photo.lon !== null) {
-      try {
-        console.log(`Проверка безопасности для URL ${photo.name}...`);
-        const nearbyObjects = await checkLocationSafety(photo.lat, photo.lon);
-        
-        if (nearbyObjects.length > 0) {
-          // Добавляем флаг небезопасности к фотографии, если есть объекты рядом
-          photo.hasNearbyObjects = true;
-          photo.nearbyObjectsCount = nearbyObjects.length;
-          console.log(`URL ${photo.name}: найдено ${nearbyObjects.length} объектов поблизости`);
-        } else {
-          console.log(`URL ${photo.name}: объектов поблизости не обнаружено`);
-        }
-      } catch (error) {
-        console.error(`Не удалось выполнить проверку безопасности для URL ${photo.name}:`, error);
-      }
+      // Запускаем проверку безопасности, но не ждем её завершения
+      console.log(`Проверка безопасности для URL ${photo.name}...`);
+      checkLocationSafety(photo.lat, photo.lon)
+        .then(nearbyObjects => {
+          if (nearbyObjects.length > 0) {
+            // Добавляем флаг небезопасности к фотографии, если есть объекты рядом
+            photo.hasNearbyObjects = true;
+            photo.nearbyObjectsCount = nearbyObjects.length;
+            console.log(`URL ${photo.name}: найдено ${nearbyObjects.length} объектов поблизости`);
+          } else {
+            photo.hasNearbyObjects = false;
+            console.log(`URL ${photo.name}: объектов поблизости не обнаружено`);
+          }
+        })
+        .catch(error => {
+          console.error(`Не удалось выполнить проверку безопасности для URL ${photo.name}:`, error);
+        });
     }
     
     return photo;
   } catch (error) {
-    console.error('Error processing URL:', error);
+    console.error('Ошибка обработки URL:', error);
     throw error;
   }
 }
