@@ -73,35 +73,33 @@ export default function SafetyCheckPanel({
     // Вначале удаляем все существующие полилинии
     removePolylines();
     
-    // Показывать линию только к ближайшему запрещенному объекту или ближайшему объекту, если нет запрещенных
     if (objects.length > 0) {
-      // Ищем запрещенные объекты
+      // Ищем запрещенные объекты (ближе минимального безопасного расстояния)
       const dangerousObjects = objects.filter(obj => !isSafeDistance(obj.distance));
       
-      // Если есть запрещенные объекты, показываем линию к ближайшему из них
-      // Иначе - к ближайшему из всех
-      const targetObjects = dangerousObjects.length > 0 ? dangerousObjects : objects;
-      
-      // Берем только ближайший объект (он уже отсортирован по расстоянию)
-      const closestObject = targetObjects[0];
-      
-      const L = window.L;
-      const isUnsafe = !isSafeDistance(closestObject.distance);
-      
-      // Рисуем одну линию к ближайшему объекту
-      L.polyline(
-        [
-          [selectedPhoto.lat, selectedPhoto.lon],
-          [closestObject.lat, closestObject.lon]
-        ],
-        {
-          color: isUnsafe ? 'var(--error)' : 'var(--primary)',
-          weight: isUnsafe ? 4 : 3,
-          opacity: 0.85,
-          dashArray: isUnsafe ? null : '5, 5',
-          className: 'safety-polyline'
-        }
-      ).addTo(mapInstance);
+      // Если есть запрещенные объекты, показываем линию ТОЛЬКО к ближайшему запрещенному
+      if (dangerousObjects.length > 0) {
+        // Берем только ближайший запрещенный объект (он уже отсортирован по расстоянию)
+        const closestDangerousObject = dangerousObjects[0];
+        
+        const L = window.L;
+        
+        // Рисуем одну линию к ближайшему запрещенному объекту
+        L.polyline(
+          [
+            [selectedPhoto.lat, selectedPhoto.lon],
+            [closestDangerousObject.lat, closestDangerousObject.lon]
+          ],
+          {
+            color: 'var(--error)', // Красный цвет для запрещенных объектов
+            weight: 4,             // Делаем линию потолще
+            opacity: 0.85,
+            dashArray: null,       // Сплошная линия для запрещенных объектов
+            className: 'safety-polyline'
+          }
+        ).addTo(mapInstance);
+      }
+      // В противном случае не рисуем линии вообще (все объекты на допустимом расстоянии)
     }
   };
   
@@ -137,11 +135,12 @@ export default function SafetyCheckPanel({
     try {
       // Запрос данных о запрещенных объектах поблизости
       console.log(`Запрос к Overpass API с координатами ${photo.lat}, ${photo.lon} и радиусом 100м`);
+      const { checkLocationSafety } = await import('./SafetyCheckService');
       const result = await checkLocationSafety(photo);
       
       if (result && result.restrictedObjects) {
         // Сортируем объекты по расстоянию
-        const sortedObjs = result.restrictedObjects.sort((a, b) => a.distance - b.distance);
+        const sortedObjs = result.restrictedObjects.sort((a: NearbyObject, b: NearbyObject) => a.distance - b.distance);
         
         // Обновляем состояние
         setSortedObjects(sortedObjs);
@@ -155,14 +154,14 @@ export default function SafetyCheckPanel({
         drawPolylinesToObjects(sortedObjs);
         
         // Обновляем атрибуты фото
-        photo.restrictedObjectsNearby = sortedObjs.some(obj => !isSafeDistance(obj.distance));
+        photo.restrictedObjectsNearby = sortedObjs.some((obj: NearbyObject) => !isSafeDistance(obj.distance));
         photo.nearbyObjectsCount = sortedObjs.length;
         
         // Выбираем фото для отображения результатов
         selectPhoto(photo);
         
         // Уведомление
-        if (sortedObjs.some(obj => !isSafeDistance(obj.distance))) {
+        if (sortedObjs.some((obj: NearbyObject) => !isSafeDistance(obj.distance))) {
           toast({
             title: "Внимание! Запрещенные объекты рядом",
             description: `Найдено ${sortedObjs.length} объектов, есть нарушения безопасного расстояния`,
@@ -273,7 +272,7 @@ export default function SafetyCheckPanel({
           const nearbyObjects = result.restrictedObjects || [];
           
           // Обновляем данные фотографии
-          photo.restrictedObjectsNearby = nearbyObjects.some(obj => !isSafeDistance(obj.distance));
+          photo.restrictedObjectsNearby = nearbyObjects.some((obj: NearbyObject) => !isSafeDistance(obj.distance));
           photo.nearbyObjectsCount = nearbyObjects.length;
           
           // Сохраняем результаты
