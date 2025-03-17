@@ -178,10 +178,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!url) throw new Error('URL не указан');
       console.log(`Сервер: загрузка изображения с ${url}`);
       
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Не удалось загрузить: ${response.status}`);
+      // Используем AbortController для таймаута запроса
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
-      let fileBuffer = await response.buffer();
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          // Добавляем User-Agent чтобы избежать 403 ошибок
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
+        }
+      });
+      
+      // Очищаем таймаут после завершения запроса
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) throw new Error(`Не удалось загрузить: ${response.status} - ${response.statusText}`);
+      
+      // Получаем данные как arrayBuffer и конвертируем в Buffer
+      const arrayBuffer = await response.arrayBuffer();
+      let fileBuffer = Buffer.from(arrayBuffer);
+      
       console.log(`Сервер: получен файл с URL, размер: ${fileBuffer.length} байт`);
       
       if (fileBuffer.length > 999999) {
