@@ -22,6 +22,9 @@ export default function MapView({
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
+  const polylineRef = useRef<any>(null);
+  const routeLayerRef = useRef<any>(null);
+  const distanceMarkersRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
