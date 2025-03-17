@@ -5,6 +5,7 @@ import { checkLocationSafety } from '@/services/overpassService';
 import { Photo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 
 interface SafetyCheckPanelProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function SafetyCheckPanel({
   const [showSelectMode, setShowSelectMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<number>>(new Set());
   const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);
+  const toast = useToast();
   
   // Отслеживаем изменение выбранной фотографии
   useEffect(() => {
@@ -112,11 +114,25 @@ export default function SafetyCheckPanel({
   
   // Проверка одной фотографии с улучшенной обработкой и учетом границ объектов
   const checkSinglePhoto = async (photo: Photo) => {
-    if (!photo.lat || !photo.lon) return;
+    if (!photo.lat || !photo.lon) {
+      toast({
+        title: "Нет координат",
+        description: "У выбранной фотографии отсутствуют координаты. Невозможно проверить объекты.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setIsLoading(true);
     
     try {
+      // Показываем уведомление о начале проверки
+      toast({
+        title: "Проверка объектов",
+        description: `Проверяем запрещенные объекты для фото ${photo.name}...`,
+        variant: "default"
+      });
+      
       // Используем улучшенную проверку безопасности
       const { checkLocationSafety: checkPhotoSafety } = await import('./SafetyCheckService');
       
@@ -148,6 +164,30 @@ export default function SafetyCheckPanel({
         }, 100);
       }
       
+      // Показываем уведомление с результатами проверки
+      if (objects.length > 0) {
+        const unsafeObjects = objects.filter(obj => !isSafeDistance(obj.distance));
+        if (unsafeObjects.length > 0) {
+          toast({
+            title: "Найдены запрещенные объекты!",
+            description: `Обнаружено ${unsafeObjects.length} объектов в опасной близости (менее ${MINIMUM_SAFE_DISTANCE}м) от фото ${photo.name}`,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Проверка завершена",
+            description: `Найдено ${objects.length} объектов на безопасном расстоянии от фото ${photo.name}`,
+            variant: "success"
+          });
+        }
+      } else {
+        toast({
+          title: "Проверка завершена",
+          description: `Запрещенных объектов поблизости от фото ${photo.name} не обнаружено`,
+          variant: "success"
+        });
+      }
+      
       // Выводим предупреждение и количество найденных объектов
       if (result.warningMessage) {
         console.log(result.warningMessage);
@@ -155,6 +195,11 @@ export default function SafetyCheckPanel({
       console.log(`Обнаружено объектов вблизи: ${objects.length}`);
     } catch (error) {
       console.error("Ошибка при проверке фотографии:", error);
+      toast({
+        title: "Ошибка проверки",
+        description: "Не удалось проверить запрещенные объекты. Попробуйте еще раз.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
