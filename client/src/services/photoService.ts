@@ -1,6 +1,6 @@
 import { Photo } from '@/lib/utils';
 import { apiRequest } from '@/lib/queryClient';
-import { checkLocationSafety } from './overpassService';
+import { checkLocationSafety } from '@/components/SafetyCheckService';
 
 // Generate a unique ID for each photo
 let nextId = 1;
@@ -130,7 +130,9 @@ export async function processFiles(files: File[], onProgress?: (current: number)
       photosWithCoords.map(async photo => {
         try {
           console.log(`Проверка безопасности для фото ${photo.name}...`);
-          const nearbyObjects = await checkLocationSafety(photo.lat as number, photo.lon as number);
+          // Используем новый формат вызова с передачей объекта фото
+          const result = await checkLocationSafety(photo);
+          const nearbyObjects = result.restrictedObjects || [];
           
           if (nearbyObjects.length > 0) {
             // Добавляем флаг небезопасности к фотографии, если есть объекты рядом
@@ -222,13 +224,14 @@ export async function processUrl(url: string): Promise<Photo | null> {
     if (photo.lat !== null && photo.lon !== null) {
       // Запускаем проверку безопасности, но не ждем её завершения
       console.log(`Проверка безопасности для URL ${photo.name}...`);
-      checkLocationSafety(photo.lat, photo.lon)
-        .then(nearbyObjects => {
-          if (nearbyObjects.length > 0) {
+      checkLocationSafety(photo) // Передаем объект целиком
+        .then(result => {
+          const restrictedObjects = result.restrictedObjects || [];
+          if (restrictedObjects.length > 0) {
             // Добавляем флаг небезопасности к фотографии, если есть объекты рядом
             photo.hasNearbyObjects = true;
-            photo.nearbyObjectsCount = nearbyObjects.length;
-            console.log(`URL ${photo.name}: найдено ${nearbyObjects.length} объектов поблизости`);
+            photo.nearbyObjectsCount = restrictedObjects.length;
+            console.log(`URL ${photo.name}: найдено ${restrictedObjects.length} объектов поблизости`);
           } else {
             photo.hasNearbyObjects = false;
             console.log(`URL ${photo.name}: объектов поблизости не обнаружено`);
