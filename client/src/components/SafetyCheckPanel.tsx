@@ -177,14 +177,14 @@ export default function SafetyCheckPanel({
           toast({
             title: "Проверка завершена",
             description: `Найдено ${objects.length} объектов на безопасном расстоянии от фото ${photo.name}`,
-            variant: "success"
+            variant: "default"
           });
         }
       } else {
         toast({
           title: "Проверка завершена",
           description: `Запрещенных объектов поблизости от фото ${photo.name} не обнаружено`,
-          variant: "success"
+          variant: "default"
         });
       }
       
@@ -394,7 +394,7 @@ export default function SafetyCheckPanel({
             ) : (
               <>
                 <i className="fas fa-shield-alt mr-2"></i>
-                <span>Проверить все фото</span>
+                <span>Проверка объектов</span>
               </>
             )}
           </Button>
