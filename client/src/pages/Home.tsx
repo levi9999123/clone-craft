@@ -66,9 +66,34 @@ export default function Home() {
     setIsPanelVisible(current => current === panelType ? null : panelType);
   };
   
-  const toggleSafetyPanel = () => {
-    if (selectedPhoto && selectedPhoto.lat && selectedPhoto.lon) {
+  const toggleSafetyPanel = async () => {
+    try {
+      // Всегда переключаем панель, независимо от наличия фото
       setIsPanelVisible(current => current === 'safety' ? null : 'safety');
+      
+      // Если есть выбранное фото с координатами, выполняем проверку безопасности
+      if (selectedPhoto && selectedPhoto.lat !== null && selectedPhoto.lon !== null) {
+        showLoading('Проверка безопасности местоположения...', 1);
+        
+        try {
+          // Получаем список близлежащих запрещенных объектов
+          const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon);
+          setRestrictedObjects(objects);
+          console.log('Обнаружено объектов вблизи: ', objects.length);
+        } catch (error) {
+          console.error('Ошибка при проверке безопасности:', error);
+          // Отображаем уведомление об ошибке пользователю
+          alert('Не удалось выполнить проверку безопасности. Пожалуйста, попробуйте еще раз.');
+        } finally {
+          hideLoading();
+        }
+      } else {
+        // Если нет выбранного фото, очищаем список объектов
+        setRestrictedObjects([]);
+      }
+    } catch (error) {
+      console.error('Непредвиденная ошибка при открытии панели безопасности:', error);
+      hideLoading();
     }
   };
 

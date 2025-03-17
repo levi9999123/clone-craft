@@ -23,7 +23,7 @@ export default function SafetyCheckPanel({
       setSortedObjects(sorted);
       
       // Отображаем полилинии на карте для визуализации расстояний
-      if (selectedPhoto && selectedPhoto.lat && selectedPhoto.lon && window.L) {
+      if (selectedPhoto && selectedPhoto.lat !== null && selectedPhoto.lon !== null && window.L) {
         // Получаем ссылку на карту из глобальной области
         const mapInstance = (window as any).mapInstance;
         if (mapInstance) {
