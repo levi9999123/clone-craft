@@ -139,35 +139,9 @@ function generateOverpassQuery(lat: number, lon: number, radius: number = DEFAUL
   `;
 }
 
-// Кэш для Overpass запросов
-const overpassCache: {[key: string]: {data: any, timestamp: number}} = {};
-const CACHE_TTL = 30 * 60 * 1000; // 30 минут
+// Кэширование отключено по запросу пользователя
 
-// Проверка, является ли запрос потенциально дорогостоящим (большой радиус)
-function isExpensiveQuery(radius: number): boolean {
-  return radius > 300; // Считаем запросы с радиусом более 300м "дорогими"
-}
-
-// Периодически очищаем кэш (выполняется раз в 10 вызовов)
-function cleanupOverpassCache() {
-  if (Math.random() < 0.1) {
-    const now = Date.now();
-    Object.keys(overpassCache).forEach(key => {
-      if (now - overpassCache[key].timestamp > CACHE_TTL) {
-        delete overpassCache[key];
-      }
-    });
-  }
-}
-
-// Получение ключа кэша
-function getOverpassCacheKey(lat: number, lon: number, radius: number): string {
-  // Округляем координаты до 5 десятичных знаков для лучшей эффективности кэширования
-  // (это примерно 1.1 метра точности, что достаточно для наших целей)
-  return `${lat.toFixed(5)},${lon.toFixed(5)},${radius}`;
-}
-
-// Оптимизированная функция для получения ближайших объектов
+// Функция для получения ближайших объектов - упрощенная версия без кэширования
 export async function fetchNearbyRestrictedObjects(lat: number, lon: number, radius: number = DEFAULT_SEARCH_RADIUS): Promise<NearbyObject[]> {
   try {
     // Проверка аргументов
@@ -179,39 +153,13 @@ export async function fetchNearbyRestrictedObjects(lat: number, lon: number, rad
     // Нормализуем радиус
     const safeRadius = Math.min(Math.max(50, radius), 500); // От 50 до 500 метров
     
-    // Проверяем кэш перед выполнением запроса
-    const cacheKey = getOverpassCacheKey(lat, lon, safeRadius);
-    if (overpassCache[cacheKey]) {
-      console.log(`Использую кэшированные данные для (${lat.toFixed(5)}, ${lon.toFixed(5)})`);
-      const cachedData = overpassCache[cacheKey].data;
-      return cachedData;
-    }
-    
-    // Если запрос дорогостоящий, проверяем, есть ли похожие запросы в кэше
-    if (isExpensiveQuery(safeRadius)) {
-      // Ищем ближайший кэшированный результат в пределах 300 метров
-      const cacheKeys = Object.keys(overpassCache);
-      for (const key of cacheKeys) {
-        const [cachedLat, cachedLon, cachedRadius] = key.split(',').map(Number);
-        const distance = Math.sqrt(
-          Math.pow(lat - cachedLat, 2) + Math.pow(lon - cachedLon, 2)
-        ) * 111000; // приблизительное расстояние в метрах (1 градус ≈ 111 км)
-        
-        // Если найден кэшированный результат рядом и радиус примерно тот же
-        if (distance < 300 && Math.abs(safeRadius - cachedRadius) < 100) {
-          console.log(`Использую приближенный кэш для (${lat}, ${lon})`);
-          return overpassCache[key].data;
-        }
-      }
-    }
-    
-    // Если не нашли в кэше, отправляем запрос
+    // Отправляем запрос к API
     const query = generateOverpassQuery(lat, lon, safeRadius);
     console.log(`Отправка запроса к Overpass API для (${lat.toFixed(5)}, ${lon.toFixed(5)})`);
     
     // Используем AbortController для таймаута
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
     
     try {
       const response = await fetch(OVERPASS_API_URL, {
@@ -234,17 +182,12 @@ export async function fetchNearbyRestrictedObjects(lat: number, lon: number, rad
       
       // Если результат пустой, возвращаем пустой массив
       if (!data.elements || data.elements.length === 0) {
-        // Кэшируем пустой результат
-        overpassCache[cacheKey] = {
-          data: [],
-          timestamp: Date.now()
-        };
         return [];
       }
       
-      // Обработка результатов - используем более эффективный map
+      // Обработка результатов
       const objects = data.elements.map((element: any) => {
-        // Быстрое извлечение нужных данных
+        // Извлечение данных
         const name = element.tags?.name || 'Неизвестный объект';
         
         // Извлекаем координаты в зависимости от типа элемента
@@ -277,8 +220,8 @@ export async function fetchNearbyRestrictedObjects(lat: number, lon: number, rad
         };
       });
       
-      // Быстрая фильтрация по расстоянию - отбрасываем объекты за пределами радиуса
-      const filteredObjects = objects.filter(obj => obj.distance <= safeRadius);
+      // Фильтрация по расстоянию - отбрасываем объекты за пределами радиуса
+      const filteredObjects = objects.filter((obj: any) => obj.distance <= safeRadius);
       
       // Обогащаем объекты информацией о типе
       const enrichedObjects = enrichObjectsWithTypeInfo(filteredObjects);
@@ -286,27 +229,18 @@ export async function fetchNearbyRestrictedObjects(lat: number, lon: number, rad
       // Сортируем по расстоянию
       const sortedObjects = enrichedObjects.sort((a, b) => a.distance - b.distance);
       
-      // Кэшируем результат
-      overpassCache[cacheKey] = {
-        data: sortedObjects,
-        timestamp: Date.now()
-      };
-      
-      // Очистка старых записей в кэше
-      cleanupOverpassCache();
-      
       return sortedObjects;
-    } catch (error) {
+    } catch (err: any) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        console.error('Timeout при запросе к Overpass API');
+      if (err.name === 'AbortError') {
+        console.error('Timeout при запроса к Overpass API');
       } else {
-        console.error('Ошибка при получении данных из Overpass API:', error);
+        console.error('Ошибка при получении данных из Overpass API:', err);
       }
       return [];
     }
-  } catch (error) {
-    console.error('Критическая ошибка при получении данных из Overpass API:', error);
+  } catch (err: any) {
+    console.error('Критическая ошибка при получении данных из Overpass API:', err);
     return [];
   }
 }

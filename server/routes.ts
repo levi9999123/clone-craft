@@ -27,59 +27,10 @@ function getImageHash(buffer: Buffer): string {
   return crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 }
 
-// Compress image function - оптимизированная версия
+// Пустая функция сжатия - просто возвращает оригинальный буфер
 async function compressImage(buffer: Buffer): Promise<Buffer> {
-  try {
-    // Сначала попробуем изменить размер изображения, что дает лучшие результаты сжатия
-    const metadata = await sharp(buffer).metadata();
-    const originalWidth = metadata.width || 1200;
-    const originalHeight = metadata.height || 800;
-    
-    // Если изображение очень большое, уменьшаем его размер
-    if (originalWidth > 1200 || originalHeight > 1200) {
-      // Определяем коэффициент масштабирования
-      const scaleFactor = Math.min(1200 / originalWidth, 1200 / originalHeight);
-      const newWidth = Math.round(originalWidth * scaleFactor);
-      const newHeight = Math.round(originalHeight * scaleFactor);
-      
-      console.log(`Изменение размера изображения с ${originalWidth}x${originalHeight} на ${newWidth}x${newHeight}`);
-      
-      // Изменяем размер с высоким качеством
-      buffer = await sharp(buffer)
-        .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 85 })
-        .toBuffer();
-      
-      // Если размер уже подходит, возвращаем результат
-      if (buffer.length <= 999999) {
-        return buffer;
-      }
-    }
-    
-    // Если после изменения размера всё еще слишком большое, применяем сжатие
-    let quality = 75; // Начинаем с хорошего качества
-    let outputBuffer = await sharp(buffer)
-      .jpeg({ quality })
-      .toBuffer();
-
-    // Быстрее уменьшаем качество, чтобы не тратить много времени на сжатие
-    const qualitySteps = [60, 45, 30, 20, 15, 10];
-    let stepIndex = 0;
-    
-    while (outputBuffer.length > 999999 && stepIndex < qualitySteps.length) {
-      quality = qualitySteps[stepIndex++];
-      outputBuffer = await sharp(buffer)
-        .jpeg({ quality })
-        .toBuffer();
-      console.log(`Сжатие: качество ${quality}, размер ${outputBuffer.length} байт`);
-    }
-    
-    return outputBuffer;
-  } catch (error) {
-    console.error('Ошибка сжатия изображения:', error);
-    // Возвращаем оригинальный буфер в случае ошибки вместо выброса исключения
-    return buffer;
-  }
+  // По просьбе пользователя не сжимаем изображения
+  return buffer;
 }
 
 // Extract coordinates from OCR data
@@ -236,61 +187,20 @@ function convertDMSToDD(dms: number[], ref: string): number {
   return dd;
 }
 
-// Process image with Eden AI OCR - оптимизированная версия
+// Process image with Eden AI OCR - упрощенная версия без кэширования
 async function processImageWithEdenAI(buffer: Buffer): Promise<{ lat: number | null, lon: number | null }> {
   try {
-    // Проверяем кэш перед отправкой запроса
-    const hash = getImageHash(buffer);
-    const now = Date.now();
-    
-    // Очистка устаревших записей в кэше (делаем раз в 10 вызовов для экономии ресурсов)
-    if (Math.random() < 0.1) {
-      Array.from(imageCache.entries()).forEach(([key, entry]) => {
-        if (now - entry.timestamp > CACHE_TTL) {
-          imageCache.delete(key);
-        }
-      });
-    }
-    
-    // Поиск в кэше
-    if (imageCache.has(hash)) {
-      const cachedResult = imageCache.get(hash)!;
-      console.log('Сервер: найдено в кэше, пропускаем запрос к Eden AI');
-      return { lat: cachedResult.lat, lon: cachedResult.lon };
-    }
-    
-    // Быстрая проверка на наличие текста в изображении перед отправкой в Eden AI
-    // Для фотографий без видимого текста нет смысла отправлять на OCR
-    try {
-      // Создаем временное изображение маленького размера для быстрой проверки
-      const smallBuffer = await sharp(buffer)
-        .resize(400, 300, { fit: 'inside' })
-        .greyscale() // Конвертируем в оттенки серого для улучшения текстовой детекции
-        .normalize() // Нормализуем контраст
-        .toBuffer();
-      
-      // В будущем тут можно добавить локальную проверку на наличие текста
-      // или попросту пропустить для больших файлов, которые заведомо являются фотографиями
-    } catch (err) {
-      // Игнорируем ошибки предварительной обработки
-    }
-    
-    // Если нет в кэше, сжимаем изображение и отправляем запрос
-    let compressedBuffer = buffer;
-    if (buffer.length > 500000) { // Снижаем порог для более агрессивного сжатия
-      compressedBuffer = await compressImage(buffer);
-    }
-    
+    // Формируем форму для отправки в API
     const edenForm = new FormData();
-    edenForm.append('file', compressedBuffer, { filename: 'photo.jpg' });
-    edenForm.append('providers', 'google'); // Используем только Google, так как он показывает лучшие результаты
-    edenForm.append('language', 'ru'); // Поддержка русского языка
+    edenForm.append('file', buffer, { filename: 'photo.jpg' });
+    edenForm.append('providers', 'google');
+    edenForm.append('language', 'ru');
 
     console.log('Сервер: отправка на Eden AI');
     
-    // Используем AbortController с более коротким таймаутом
+    // Используем AbortController с таймаутом
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // Снижаем таймаут до 15 секунд
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
     
     try {
       const response = await fetch(EDEN_AI_API_URL, {
@@ -306,26 +216,20 @@ async function processImageWithEdenAI(buffer: Buffer): Promise<{ lat: number | n
       // Очищаем таймаут после завершения запроса
       clearTimeout(timeoutId);
       
+      const text = await response.text();
+      console.log('Сервер: ответ Eden AI:', text);
+      
       if (!response.ok) {
         console.warn(`Сервер: ошибка Eden AI: ${response.status}`);
         return { lat: null, lon: null };
       }
       
-      // Используем более эффективный способ чтения ответа
-      const result = await response.json();
+      // Парсим JSON-ответ
+      const result = JSON.parse(text);
       
       // Попытка найти координаты в результате
       const coords = extractCoordinates(result);
       console.log('Сервер: возвращаемые координаты:', coords);
-      
-      // Добавляем результат в кэш только если нашли координаты
-      if (coords.lat !== null && coords.lon !== null) {
-        imageCache.set(hash, {
-          lat: coords.lat,
-          lon: coords.lon,
-          timestamp: now
-        });
-      }
       
       return coords;
     } catch (fetchError) {
@@ -359,13 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let fileBuffer = file.buffer;
           console.log(`Сервер: обработка файла (${file.originalname}), размер: ${file.size} байт`);
           
-          // Предварительная проверка кэша
-          const fileHash = getImageHash(fileBuffer);
-          if (imageCache.has(fileHash)) {
-            console.log(`Сервер: файл ${file.originalname} найден в кэше`);
-            const cachedResult = imageCache.get(fileHash)!;
-            return { name: file.originalname, lat: cachedResult.lat, lon: cachedResult.lon };
-          }
+          // Кэширование отключено по просьбе пользователя
           
           if (file.size > 999999) {
             fileBuffer = await compressImage(fileBuffer);
