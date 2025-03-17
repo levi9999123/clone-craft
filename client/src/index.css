@@ -107,3 +107,52 @@
   background-color: rgba(0, 123, 255, 0.8) !important;
   color: white !important;
 }
+
+/* Стили для расстояний на линиях между точками */
+.distance-label {
+  background-color: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: bold;
+  text-align: center;
+  font-size: 12px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+  border: 1px solid white;
+  white-space: nowrap;
+}
+
+/* Стиль для информации о маршруте */
+.route-info-box {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  margin: 10px;
+}
+
+/* Улучшаем видимость кнопок в попапах */
+.leaflet-popup-content button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #007bff !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 3px !important;
+  width: 22px !important;
+  height: 22px !important;
+  margin-left: 6px !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s !important;
+}
+
+.leaflet-popup-content button:hover {
+  background-color: #0056b3 !important;
+}
+
+.leaflet-popup-content button i {
+  font-size: 12px !important;
+}

@@ -218,6 +218,9 @@ export default function MapView({
         mapRef.current = null;
         markersRef.current = null;
         tileLayerRef.current = null;
+        polylineRef.current = null;
+        routeLayerRef.current = null;
+        distanceMarkersRef.current = null;
         (window as any).mapInstance = null;
         isMapMounted.current = false; // Сбрасываем флаг
         setMapInitialized(false); // Сбрасываем state
@@ -295,6 +298,147 @@ export default function MapView({
     setDuplicateGroups(duplicates);
   };
 
+  // Функция для нахождения ближайшего соседа (для построения маршрута)
+  const findNearestNeighborRoute = (points: {lat: number, lon: number}[]): {lat: number, lon: number}[] => {
+    if (points.length <= 1) return points;
+    
+    const visited = new Set<number>();
+    const route: {lat: number, lon: number}[] = [];
+    
+    // Начинаем с первой точки
+    let currentIndex = 0;
+    route.push(points[currentIndex]);
+    visited.add(currentIndex);
+    
+    // Пока не посетим все точки
+    while (visited.size < points.length) {
+      let nearestIndex = -1;
+      let minDistance = Infinity;
+      
+      // Находим ближайшую непосещенную точку
+      for (let i = 0; i < points.length; i++) {
+        if (visited.has(i)) continue;
+        
+        const currentPoint = points[currentIndex];
+        const candidatePoint = points[i];
+        
+        // Вычисляем расстояние
+        const distance = Math.sqrt(
+          Math.pow(currentPoint.lat - candidatePoint.lat, 2) + 
+          Math.pow(currentPoint.lon - candidatePoint.lon, 2)
+        );
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = i;
+        }
+      }
+      
+      if (nearestIndex !== -1) {
+        currentIndex = nearestIndex;
+        route.push(points[nearestIndex]);
+        visited.add(nearestIndex);
+      } else {
+        // Если не нашли ближайшей точки, прерываем цикл
+        break;
+      }
+    }
+    
+    return route;
+  };
+  
+  // Функция для отображения линий между точками (маршрут)
+  const drawRouteLines = () => {
+    if (!mapRef.current || !window.L) return;
+    
+    const L = window.L;
+    
+    // Очищаем предыдущие линии
+    if (routeLayerRef.current) {
+      mapRef.current.removeLayer(routeLayerRef.current);
+    }
+    
+    // Создаем новый слой для маршрута
+    routeLayerRef.current = L.layerGroup().addTo(mapRef.current);
+    
+    // Собираем координаты фотографий
+    const photoPoints = photos
+      .filter(p => p.lat !== null && p.lon !== null)
+      .map(p => ({ lat: p.lat!, lon: p.lon!, id: p.id }));
+    
+    if (photoPoints.length < 2) return;
+    
+    // Находим оптимальный маршрут "ближайший сосед"
+    const routePoints = findNearestNeighborRoute(photoPoints);
+    
+    // Рисуем линии маршрута
+    const polyline = L.polyline(
+      routePoints.map(p => [p.lat, p.lon]), 
+      {
+        color: '#3388ff',
+        weight: 3,
+        opacity: 0.7,
+        lineJoin: 'round',
+        className: 'route-polyline'
+      }
+    ).addTo(routeLayerRef.current);
+    
+    // Добавляем метки с расстояниями
+    if (distanceMarkersRef.current) {
+      mapRef.current.removeLayer(distanceMarkersRef.current);
+    }
+    
+    distanceMarkersRef.current = L.layerGroup().addTo(mapRef.current);
+    
+    // Расставляем метки с расстоянием между соседними точками
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const point1 = routePoints[i];
+      const point2 = routePoints[i + 1];
+      
+      // Вычисляем расстояние в метрах между точками
+      const latlng1 = L.latLng(point1.lat, point1.lon);
+      const latlng2 = L.latLng(point2.lat, point2.lon);
+      const distanceMeters = latlng1.distanceTo(latlng2);
+      
+      // Находим середину линии для размещения метки
+      const midPoint = L.latLng(
+        (point1.lat + point2.lat) / 2,
+        (point1.lon + point2.lon) / 2
+      );
+      
+      // Создаем метку с расстоянием
+      const distanceLabel = L.divIcon({
+        html: `<div class="distance-label">${Math.round(distanceMeters)} м</div>`,
+        className: '',
+        iconSize: [80, 20],
+        iconAnchor: [40, 10]
+      });
+      
+      L.marker(midPoint, { icon: distanceLabel }).addTo(distanceMarkersRef.current);
+    }
+    
+    // Добавляем общее расстояние маршрута
+    let totalDistance = 0;
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const latlng1 = L.latLng(routePoints[i].lat, routePoints[i].lon);
+      const latlng2 = L.latLng(routePoints[i + 1].lat, routePoints[i + 1].lon);
+      totalDistance += latlng1.distanceTo(latlng2);
+    }
+    
+    // Добавляем информацию о маршруте в правый нижний угол
+    const routeInfoControl = L.control({ position: 'bottomright' });
+    routeInfoControl.onAdd = () => {
+      const div = L.DomUtil.create('div', 'route-info');
+      div.innerHTML = `<div class="route-info-box">
+        <strong>Общая длина: ${Math.round(totalDistance)} м</strong><br>
+        <span>Точек: ${routePoints.length}</span>
+      </div>`;
+      return div;
+    };
+    
+    routeInfoControl.addTo(mapRef.current);
+  };
+  
   // Функция обновления маркеров (теперь без обновления дубликатов)
   const updateMarkers = () => {
     if (!mapRef.current || !markersRef.current || !mapInitialized) return;
@@ -405,6 +549,11 @@ export default function MapView({
   useEffect(() => {
     if (mapInitialized) {
       updateMarkers();
+      // Также рисуем маршрут, если есть достаточно точек
+      const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
+      if (photosWithCoords.length >= 2) {
+        drawRouteLines();
+      }
     }
   }, [photos, selectedPhoto, mapInitialized]);
   
