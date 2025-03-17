@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
 import { findDuplicates } from '@/lib/utils';
 import MapSettings from './MapSettings';
+import SearchPanel from './SearchPanel';
+import TooltipWrapper from './TooltipWrapper';
 
 interface MapViewProps {
   onToggleNearbyPanel: () => void;
@@ -21,6 +23,7 @@ export default function MapView({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [useAnimation, setUseAnimation] = useState(true);
   const [useCluster, setUseCluster] = useState(true);
   
@@ -279,42 +282,67 @@ export default function MapView({
       <div id="map" ref={mapContainerRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10, background: 'var(--map-bg)' }}></div>
       
       <div className="absolute top-3 right-3 space-x-2 z-[1000] flex">
-        <button 
-          className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
-          style={{ 
-            backgroundColor: isPanelVisible === 'nearby' ? 'var(--accent)' : 'var(--primary)', 
-            textShadow: '0px 1px 2px var(--shadow-strong)',
-            boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
-          }}
-          onClick={onToggleNearbyPanel}
-        >
-          <i className="fas fa-map-marked-alt mr-1"></i> Ближайшие
-        </button>
+        <TooltipWrapper text="Показать ближайшие фотографии" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: isPanelVisible === 'nearby' ? 'var(--accent)' : 'var(--primary)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+            }}
+            onClick={onToggleNearbyPanel}
+          >
+            <i className="fas fa-map-marked-alt mr-1"></i> Ближайшие
+          </button>
+        </TooltipWrapper>
         
-        <button 
-          className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
-          style={{ 
-            backgroundColor: isPanelVisible === 'duplicate' ? 'var(--accent)' : 'var(--primary)', 
-            textShadow: '0px 1px 2px var(--shadow-strong)',
-            boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
-          }}
-          onClick={onToggleDuplicatePanel}
-        >
-          <i className="fas fa-clone mr-1"></i> Дубликаты
-        </button>
+        <TooltipWrapper text="Найти дубликаты фотографий" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: isPanelVisible === 'duplicate' ? 'var(--accent)' : 'var(--primary)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+            }}
+            onClick={onToggleDuplicatePanel}
+          >
+            <i className="fas fa-clone mr-1"></i> Дубликаты
+          </button>
+        </TooltipWrapper>
         
-        <button 
-          className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
-          style={{ 
-            backgroundColor: isSettingsOpen ? 'var(--accent)' : 'var(--primary)', 
-            textShadow: '0px 1px 2px var(--shadow-strong)',
-            boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
-          }}
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          title="Настройки карты"
-        >
-          <i className="fas fa-cog mr-1"></i> Настройки
-        </button>
+        <TooltipWrapper text="Искать фотографии по параметрам" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: isSearchOpen ? 'var(--accent)' : 'var(--primary)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+            }}
+            onClick={() => {
+              setIsSearchOpen(!isSearchOpen);
+              if (isSettingsOpen) setIsSettingsOpen(false);
+            }}
+          >
+            <i className="fas fa-search mr-1"></i> Поиск
+          </button>
+        </TooltipWrapper>
+        
+        <TooltipWrapper text="Настроить вид и поведение карты" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: isSettingsOpen ? 'var(--accent)' : 'var(--primary)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+            }}
+            onClick={() => {
+              setIsSettingsOpen(!isSettingsOpen);
+              if (isSearchOpen) setIsSearchOpen(false);
+            }}
+          >
+            <i className="fas fa-cog mr-1"></i> Настройки
+          </button>
+        </TooltipWrapper>
       </div>
       
       {/* Панель настроек карты */}
@@ -324,6 +352,12 @@ export default function MapView({
         onChangeMapStyle={handleMapStyleChange}
         onToggleCluster={handleToggleCluster}
         onToggleAnimations={handleToggleAnimations}
+      />
+      
+      {/* Панель поиска фотографий */}
+      <SearchPanel 
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
       />
       
       <div className="map-legend absolute bottom-3 left-3 p-3 rounded shadow-lg text-sm z-[1000]" 
