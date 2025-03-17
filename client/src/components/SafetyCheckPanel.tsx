@@ -73,26 +73,35 @@ export default function SafetyCheckPanel({
     // Вначале удаляем все существующие полилинии
     removePolylines();
     
-    // Если есть фото и точки объектов, рисуем полилинии
+    // Показывать линию только к ближайшему запрещенному объекту или ближайшему объекту, если нет запрещенных
     if (objects.length > 0) {
-      objects.forEach(obj => {
-        const L = window.L;
-        const isUnsafe = !isSafeDistance(obj.distance);
-        
-        L.polyline(
-          [
-            [selectedPhoto.lat, selectedPhoto.lon],
-            [obj.lat, obj.lon]
-          ],
-          {
-            color: isUnsafe ? 'var(--error)' : 'var(--primary)',
-            weight: isUnsafe ? 3 : 2,
-            opacity: 0.7,
-            dashArray: isUnsafe ? null : '5, 5',
-            className: 'safety-polyline'
-          }
-        ).addTo(mapInstance);
-      });
+      // Ищем запрещенные объекты
+      const dangerousObjects = objects.filter(obj => !isSafeDistance(obj.distance));
+      
+      // Если есть запрещенные объекты, показываем линию к ближайшему из них
+      // Иначе - к ближайшему из всех
+      const targetObjects = dangerousObjects.length > 0 ? dangerousObjects : objects;
+      
+      // Берем только ближайший объект (он уже отсортирован по расстоянию)
+      const closestObject = targetObjects[0];
+      
+      const L = window.L;
+      const isUnsafe = !isSafeDistance(closestObject.distance);
+      
+      // Рисуем одну линию к ближайшему объекту
+      L.polyline(
+        [
+          [selectedPhoto.lat, selectedPhoto.lon],
+          [closestObject.lat, closestObject.lon]
+        ],
+        {
+          color: isUnsafe ? 'var(--error)' : 'var(--primary)',
+          weight: isUnsafe ? 4 : 3,
+          opacity: 0.85,
+          dashArray: isUnsafe ? null : '5, 5',
+          className: 'safety-polyline'
+        }
+      ).addTo(mapInstance);
     }
   };
   
