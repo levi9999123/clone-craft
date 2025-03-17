@@ -23,9 +23,15 @@ export default function MapView({
   useEffect(() => {
     if (mapInitialized) return;
     
+    console.log("Начало эффекта инициализации карты, mapInitialized =", mapInitialized);
+    
     // Проверим наличие Leaflet в глобальной области
     const initMap = () => {
-      if (!mapContainerRef.current) return;
+      if (!mapContainerRef.current) {
+        console.error("Контейнер для карты не найден!");
+        return;
+      }
+      
       if (typeof window === 'undefined' || !window.L) {
         console.error("Leaflet не найден в глобальной области!");
         return;
@@ -70,7 +76,10 @@ export default function MapView({
         map.addLayer(markers);
         
         // Перерасчет размера карты после инициализации
-        map.invalidateSize();
+        setTimeout(() => {
+          map.invalidateSize(true);
+          console.log("Принудительно пересчитаны размеры карты");
+        }, 500);
         
         mapRef.current = map;
         markersRef.current = markers;
@@ -82,21 +91,24 @@ export default function MapView({
       }
     };
     
+    console.log("Запуск инициализации карты...");
     // Задержка инициализации карты для уверенности, что DOM загружен
     const timerId = setTimeout(() => {
       initMap();
-    }, 100);
+    }, 200);
     
+    // Очистка при размонтировании
     return () => {
+      console.log("!! КОМПОНЕНТ РАЗМОНТИРУЕТСЯ !!");
       clearTimeout(timerId);
       if (mapRef.current) {
-        console.log("Удаление карты...");
+        console.log("Удаление карты при размонтировании компонента");
         mapRef.current.remove();
         mapRef.current = null;
         markersRef.current = null;
       }
     };
-  }, [mapInitialized]);
+  }, []);
 
   // Update markers when photos change
   useEffect(() => {
@@ -166,8 +178,8 @@ export default function MapView({
   }, [selectedPhoto]);
 
   return (
-    <div id="map-container" className="flex-grow relative" style={{ minHeight: '100%', minWidth: '100%' }}>
-      <div id="map" ref={mapContainerRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10 }}></div>
+    <div id="map-container" className="flex-grow relative" style={{ minHeight: '100%', minWidth: '100%', background: '#e5e3df' }}>
+      <div id="map" ref={mapContainerRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10, background: '#e5e3df' }}></div>
       
       <div className="absolute top-3 right-3 space-x-2 z-[1000]">
         <button 
