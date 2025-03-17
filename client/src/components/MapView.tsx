@@ -624,7 +624,6 @@ export default function MapView({
             }}
             onClick={() => {
               setIsSettingsOpen(!isSettingsOpen);
-              if (isSearchOpen) setIsSearchOpen(false);
               if (isExportOpen) setIsExportOpen(false);
               if (isStatsOpen) setIsStatsOpen(false);
             }}
@@ -646,7 +645,6 @@ export default function MapView({
             onClick={() => {
               if (photos.filter(p => p.lat !== null && p.lon !== null).length < 2) return;
               setIsStatsOpen(!isStatsOpen);
-              if (isSearchOpen) setIsSearchOpen(false);
               if (isSettingsOpen) setIsSettingsOpen(false);
               if (isExportOpen) setIsExportOpen(false);
             }}
@@ -668,7 +666,6 @@ export default function MapView({
             onClick={() => {
               if (photos.filter(p => p.lat !== null && p.lon !== null).length === 0) return;
               setIsExportOpen(!isExportOpen);
-              if (isSearchOpen) setIsSearchOpen(false);
               if (isSettingsOpen) setIsSettingsOpen(false);
               if (isStatsOpen) setIsStatsOpen(false);
             }}
