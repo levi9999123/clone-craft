@@ -169,8 +169,38 @@ export default function SafetyCheckPanel({
           
           localStorage.setItem('safetyCheckReport', JSON.stringify(reportData));
           
-          // Открываем новую вкладку с отчетом
-          window.open('/report', '_blank');
+          // Открываем отчет в том же окне, перенаправляя пользователя
+          try {
+            // Сначала пробуем открыть в новой вкладке
+            const newWindow = window.open('/report', '_blank');
+            
+            // Если окно не открылось (заблокировано), показываем ссылку в сообщении
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+              toast({
+                title: "Отчет готов!",
+                description: (
+                  <div>
+                    Блокировщик всплывающих окон не позволил открыть отчет. 
+                    <a 
+                      href="/report" 
+                      target="_blank" 
+                      className="ml-1 text-primary underline font-medium"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.location.href = '/report';
+                      }}
+                    >
+                      Нажмите здесь, чтобы открыть отчет
+                    </a>
+                  </div>
+                ),
+                duration: 10000
+              });
+            }
+          } catch (error) {
+            // В случае любой ошибки, просто перенаправляем пользователя
+            window.location.href = '/report';
+          }
           
           // Уведомление
           if (sortedObjs.some(obj => !isSafeDistance(obj.distance))) {
@@ -205,7 +235,36 @@ export default function SafetyCheckPanel({
           };
           
           localStorage.setItem('safetyCheckReport', JSON.stringify(reportData));
-          window.open('/report', '_blank');
+          
+          // Используем тот же механизм открытия, что и выше
+          try {
+            const newWindow = window.open('/report', '_blank');
+            
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+              toast({
+                title: "Отчет готов!",
+                description: (
+                  <div>
+                    Блокировщик всплывающих окон не позволил открыть отчет. 
+                    <a 
+                      href="/report" 
+                      target="_blank" 
+                      className="ml-1 text-primary underline font-medium"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.location.href = '/report';
+                      }}
+                    >
+                      Нажмите здесь, чтобы открыть отчет
+                    </a>
+                  </div>
+                ),
+                duration: 10000
+              });
+            }
+          } catch (error) {
+            window.location.href = '/report';
+          }
           
           toast({
             title: "Проверка завершена",
@@ -324,6 +383,26 @@ export default function SafetyCheckPanel({
                 </div>
               </div>
             ))}
+            
+            {/* Кнопка для открытия отчета вручную */}
+            <Button 
+              variant="outline" 
+              className="w-full mt-4"
+              onClick={() => {
+                // Сохраняем актуальный отчет перед открытием
+                const reportData = {
+                  photos: photos.filter(p => p.lat !== null && p.lon !== null),
+                  objectsEntries: Array.from(checkedPhotos.entries()),
+                  date: new Date().toISOString()
+                };
+                
+                localStorage.setItem('safetyCheckReport', JSON.stringify(reportData));
+                window.location.href = '/report';
+              }}
+            >
+              <i className="fas fa-file-alt mr-2"></i>
+              Открыть полный отчет
+            </Button>
           </div>
         </div>
       )}
