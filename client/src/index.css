@@ -198,7 +198,20 @@ div[class*="p-4 bg-gray-50"] button,
   transition: transform 0.2s, background-color 0.2s !important;
   z-index: 10 !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
-  color: white !important;
+  background-color: #0070e0 !important; /* Яркий синий цвет фона кнопок */
+}
+
+/* Кнопки в панели фото и модалках */
+.photo-button,
+.delete-btn,
+.copy-btn,
+.coords-copy-btn,
+.safety-check-all-btn,
+.safety-check-current-btn,
+.url-submit-btn {
+  background-color: #0070e0 !important;
+  border: none !important;
+  border-radius: 4px !important;
 }
 
 /* Текст и иконки внутри кнопок должны быть контрастными и видимыми */
@@ -220,12 +233,18 @@ button span,
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Серые кнопки требуют темного текста */
+/* Серые кнопки требуют другого фона и текста */
+button[class*="bg-gray"],
+.cancel-btn {
+  background-color: #e0e0e0 !important;
+}
+
 button[class*="bg-gray"] i,
 button[class*="bg-gray"] span,
 .cancel-btn i,
 .cancel-btn span {
   color: #333 !important;
+  text-shadow: none !important;
 }
 
 /* Круглые кнопки на карте */
