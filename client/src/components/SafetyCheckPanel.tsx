@@ -98,26 +98,26 @@ export default function SafetyCheckPanel({
   
   // Функция для удаления всех полилиний
   const removePolylines = () => {
+    if (!window.L) return;
+    
+    // Получаем ссылку на карту из глобальной области
     const mapInstance = (window as any).mapInstance;
     if (!mapInstance) return;
     
-    const layers = mapInstance._layers;
-    if (layers) {
-      Object.keys(layers).forEach(key => {
-        const layer = layers[key];
-        if (layer.options && layer.options.className === 'safety-polyline') {
-          mapInstance.removeLayer(layer);
-        }
-      });
-    }
+    // Находим и удаляем все полилинии с классом safety-polyline
+    mapInstance.eachLayer((layer: any) => {
+      if (layer.options && layer.options.className === 'safety-polyline') {
+        mapInstance.removeLayer(layer);
+      }
+    });
   };
   
-  // Проверка одной фотографии с улучшенной обработкой и учетом границ объектов
+  // Получаем точки объектов, сортируем по расстоянию и отображаем на карте
   const checkSinglePhoto = async (photo: Photo) => {
-    if (!photo.lat || !photo.lon) {
+    if (!photo || !photo.lat || !photo.lon) {
       toast({
-        title: "Нет координат",
-        description: "У выбранной фотографии отсутствуют координаты. Невозможно проверить объекты.",
+        title: "Выберите точку",
+        description: "Выберите точку на карте для проверки",
         variant: "destructive"
       });
       return;
@@ -126,75 +126,70 @@ export default function SafetyCheckPanel({
     setIsLoading(true);
     
     try {
-      // Показываем уведомление о начале проверки
-      toast({
-        title: "Проверка объектов",
-        description: `Проверяем запрещенные объекты для фото ${photo.name}...`,
-        variant: "default"
-      });
+      // Запрос данных о запрещенных объектах поблизости
+      console.log(`Запрос к Overpass API с координатами ${photo.lat}, ${photo.lon} и радиусом 100м`);
+      const result = await checkLocationSafety(photo);
       
-      // Используем улучшенную проверку безопасности
-      const { checkLocationSafety: checkPhotoSafety } = await import('./SafetyCheckService');
-      
-      // Запускаем проверку, передавая фото целиком
-      const result = await checkPhotoSafety(photo);
-      
-      // Получаем список объектов из результата
-      const objects = result.restrictedObjects || [];
-      
-      // Сохраняем результаты
-      const newCheckedPhotos = new Map(checkedPhotos);
-      newCheckedPhotos.set(photo.id, objects);
-      setCheckedPhotos(newCheckedPhotos);
-      
-      // Устанавливаем флаг запрещенных объектов для индикации на карте
-      photo.restrictedObjectsNearby = objects.length > 0;
-      photo.nearbyObjectsCount = objects.length;
-      
-      // Выбираем эту фотографию для отображения результатов
-      selectPhoto(photo);
-      setSortedObjects(objects);
-      
-      // Обновляем маркеры на карте, чтобы показать новый статус
-      if ((window as any).mapInstance) {
-        setTimeout(() => {
-          if ((window as any).mapInstance && (window as any).mapInstance.invalidateSize) {
-            (window as any).mapInstance.invalidateSize();
-          }
-        }, 100);
-      }
-      
-      // Показываем уведомление с результатами проверки
-      if (objects.length > 0) {
-        const unsafeObjects = objects.filter(obj => !isSafeDistance(obj.distance));
-        if (unsafeObjects.length > 0) {
+      if (result && result.restrictedObjects) {
+        // Сортируем объекты по расстоянию
+        const sortedObjs = result.restrictedObjects.sort((a, b) => a.distance - b.distance);
+        
+        // Обновляем состояние
+        setSortedObjects(sortedObjs);
+        
+        // Сохраняем результаты проверки для этой фотографии
+        const newCheckedPhotos = new Map(checkedPhotos);
+        newCheckedPhotos.set(photo.id, sortedObjs);
+        setCheckedPhotos(newCheckedPhotos);
+        
+        // Отображаем полилинии к объектам
+        drawPolylinesToObjects(sortedObjs);
+        
+        // Обновляем атрибуты фото
+        photo.restrictedObjectsNearby = sortedObjs.some(obj => !isSafeDistance(obj.distance));
+        photo.nearbyObjectsCount = sortedObjs.length;
+        
+        // Выбираем фото для отображения результатов
+        selectPhoto(photo);
+        
+        // Уведомление
+        if (sortedObjs.some(obj => !isSafeDistance(obj.distance))) {
           toast({
-            title: "Найдены запрещенные объекты!",
-            description: `Обнаружено ${unsafeObjects.length} объектов в опасной близости (менее ${MINIMUM_SAFE_DISTANCE}м) от фото ${photo.name}`,
+            title: "Внимание! Запрещенные объекты рядом",
+            description: `Найдено ${sortedObjs.length} объектов, есть нарушения безопасного расстояния`,
             variant: "destructive"
+          });
+        } else if (sortedObjs.length > 0) {
+          toast({
+            title: "Объекты найдены",
+            description: `Найдено ${sortedObjs.length} объектов, все на безопасном расстоянии`,
+            variant: "default"
           });
         } else {
           toast({
             title: "Проверка завершена",
-            description: `Найдено ${objects.length} объектов на безопасном расстоянии от фото ${photo.name}`,
+            description: "Запрещенных объектов поблизости не найдено",
             variant: "default"
           });
         }
       } else {
+        // Не найдено объектов
+        setSortedObjects([]);
+        removePolylines();
+        
+        // Отмечаем фото как проверенное с пустым массивом
+        const newCheckedPhotos = new Map(checkedPhotos);
+        newCheckedPhotos.set(photo.id, []);
+        setCheckedPhotos(newCheckedPhotos);
+        
         toast({
           title: "Проверка завершена",
-          description: `Запрещенных объектов поблизости от фото ${photo.name} не обнаружено`,
+          description: "Запрещенных объектов поблизости не найдено",
           variant: "default"
         });
       }
-      
-      // Выводим предупреждение и количество найденных объектов
-      if (result.warningMessage) {
-        console.log(result.warningMessage);
-      }
-      console.log(`Обнаружено объектов вблизи: ${objects.length}`);
     } catch (error) {
-      console.error("Ошибка при проверке фотографии:", error);
+      console.error("Ошибка при проверке:", error);
       toast({
         title: "Ошибка проверки",
         description: "Не удалось проверить запрещенные объекты. Попробуйте еще раз.",
@@ -208,11 +203,11 @@ export default function SafetyCheckPanel({
   // Функция для проверки нескольких выбранных фотографий
   const checkSelectedPhotos = async () => {
     // Получаем выбранные фотографии
-    const selectedPhotos = photos.filter(p => 
+    const photosToCheck = photos.filter(p => 
       p.lat !== null && p.lon !== null && selectedPhotoIds.has(p.id)
     );
     
-    if (selectedPhotos.length === 0) {
+    if (photosToCheck.length === 0) {
       toast({
         title: "Нет выбранных фотографий",
         description: "Выберите фотографии для проверки",
@@ -221,121 +216,104 @@ export default function SafetyCheckPanel({
       return;
     }
     
+    // Устанавливаем статусы загрузки
     setIsCheckingAll(true);
     setIsLoading(true);
     
     try {
-      // Сначала закрываем модальное окно, чтобы оно не перекрывало интерфейс
+      // Закрываем диалоговое окно
       setIsCheckModalOpen(false);
       
-      // Показываем индикатор загрузки
-      const total = selectedPhotos.length;
-      
+      // Показываем сообщение о начале проверки
       toast({
         title: "Проверка запрещенных объектов",
-        description: `Запущена проверка для ${total} фотографий...`,
+        description: `Проверяем ${photosToCheck.length} фотографий...`,
         variant: "default"
       });
       
-      // Функция обновления прогресса на индикаторе
-      const updateProgress = (current: number, photoName: string) => {
-        const progressPercent = Math.round((current / total) * 100);
-        const progressElement = document.getElementById('batch-progress-bar');
-        const progressTextElement = document.getElementById('progress-text');
+      // Обновление прогресса в интерфейсе
+      const updateProgressUI = (current: number, total: number, photoName: string) => {
+        const percent = Math.round((current / total) * 100);
+        const progressBar = document.getElementById('batch-progress-bar');
+        const progressText = document.getElementById('progress-text');
         
-        if (progressElement) {
-          progressElement.style.width = `${progressPercent}%`;
-          progressElement.setAttribute('aria-valuenow', progressPercent.toString());
+        if (progressBar) {
+          progressBar.style.width = `${percent}%`;
+          progressBar.setAttribute('aria-valuenow', percent.toString());
         }
         
-        if (progressTextElement) {
-          progressTextElement.textContent = `Проверено ${current} из ${total}: ${photoName}`;
+        if (progressText) {
+          progressText.textContent = `Проверено ${current} из ${total}: ${photoName}`;
         }
       };
       
-      console.log(`Начало параллельной проверки безопасности для ${selectedPhotos.length} фотографий...`);
+      // Создаем новую карту для хранения результатов
+      const resultsMap = new Map<number, NearbyObject[]>();
+      let completedCount = 0;
       
-      // Создаем новую Map для результатов
-      const resultMap = new Map<number, NearbyObject[]>();
-      
-      // Проверяем все выбранные фотографии одновременно
-      let processed = 0;
-      
-      // Начинаем проверку всех фотографий одновременно
-      const promises = selectedPhotos.map(async (photo) => {
-        if (!photo.lat || !photo.lon) return null;
+      // Проверяем каждую фотографию
+      for (const photo of photosToCheck) {
+        if (!photo.lat || !photo.lon) continue;
         
         try {
-          console.log(`Проверка безопасности для фото ${photo.name}...`);
-          
-          // Импортируем функцию проверки
+          // Получаем функцию проверки
           const { checkLocationSafety } = await import('./SafetyCheckService');
           
           // Запускаем проверку
           const result = await checkLocationSafety(photo);
-          const objects = result.restrictedObjects || [];
+          const nearbyObjects = result.restrictedObjects || [];
           
-          // Устанавливаем флаг запрещенных объектов для индикации на карте
-          photo.restrictedObjectsNearby = objects.some(obj => !isSafeDistance(obj.distance));
-          photo.nearbyObjectsCount = objects.length;
+          // Обновляем данные фотографии
+          photo.restrictedObjectsNearby = nearbyObjects.some(obj => !isSafeDistance(obj.distance));
+          photo.nearbyObjectsCount = nearbyObjects.length;
           
-          console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
+          // Сохраняем результаты
+          resultsMap.set(photo.id, nearbyObjects);
           
-          // Обновляем индикатор прогресса
-          processed++;
-          updateProgress(processed, photo.name);
+          // Обновляем прогресс
+          completedCount++;
+          updateProgressUI(completedCount, photosToCheck.length, photo.name);
           
-          // Возвращаем результат
-          return { photoId: photo.id, objects: objects };
         } catch (error) {
           console.error(`Ошибка при проверке фото ${photo.name}:`, error);
-          processed++;
-          updateProgress(processed, photo.name);
-          return { photoId: photo.id, objects: [] };
-        }
-      });
-      
-      // Ждем завершения всех проверок
-      const checkResults = await Promise.all(promises);
-      
-      // Обрабатываем результаты
-      for (const result of checkResults) {
-        if (result) {
-          resultMap.set(result.photoId, result.objects);
+          // В случае ошибки также сохраняем пустой результат
+          resultsMap.set(photo.id, []);
+          completedCount++;
+          updateProgressUI(completedCount, photosToCheck.length, photo.name);
         }
       }
       
-      // Обновляем состояние
-      setCheckedPhotos(resultMap);
+      // Обновляем состояние компонента с результатами
+      setCheckedPhotos(resultsMap);
       
-      // Определяем, есть ли небезопасные фотографии
-      let unsafePhotosCount = 0;
-      resultMap.forEach((objects) => {
+      // Подсчитываем количество небезопасных фотографий
+      let unsafeCount = 0;
+      resultsMap.forEach((objects) => {
         if (objects.some(obj => !isSafeDistance(obj.distance))) {
-          unsafePhotosCount++;
+          unsafeCount++;
         }
       });
-
-      // Закрываем режим выбора и сбрасываем выбранные фото
+      
+      // Сбрасываем режим выбора
       setShowSelectMode(false);
       setSelectedPhotoIds(new Set());
       
-      // Уведомляем пользователя о результатах
-      if (unsafePhotosCount > 0) {
+      // Показываем уведомление с результатами
+      if (unsafeCount > 0) {
         toast({
           title: "Внимание! Обнаружены нарушения",
-          description: `Найдено ${unsafePhotosCount} фотографий с запрещенными объектами ближе ${MINIMUM_SAFE_DISTANCE} метров`,
+          description: `Найдено ${unsafeCount} фотографий с запрещенными объектами ближе ${MINIMUM_SAFE_DISTANCE} метров`,
           variant: "destructive"
         });
       } else {
         toast({
           title: "Проверка завершена",
-          description: `Проверено ${processed} фотографий. Запрещенных объектов в опасной близости не обнаружено.`,
+          description: `Проверено ${completedCount} фотографий. Запрещенных объектов в опасной близости не обнаружено.`,
           variant: "default"
         });
       }
-
-      // Обновляем маркеры на карте, но не выбираем точку автоматически
+      
+      // Обновляем карту без автоматического выбора точки
       setTimeout(() => {
         if ((window as any).mapInstance) {
           ((window as any).mapInstance).invalidateSize();
@@ -343,13 +321,14 @@ export default function SafetyCheckPanel({
       }, 100);
       
     } catch (error) {
-      console.error("Ошибка при проверке выбранных фотографий:", error);
+      console.error("Ошибка при проверке фотографий:", error);
       toast({
         title: "Ошибка проверки",
         description: "Произошла ошибка при проверке фотографий",
         variant: "destructive"
       });
     } finally {
+      // Сбрасываем состояние загрузки
       setTimeout(() => {
         setIsLoading(false);
         setIsCheckingAll(false);
