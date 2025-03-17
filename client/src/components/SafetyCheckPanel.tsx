@@ -373,12 +373,23 @@ export default function SafetyCheckPanel({
       return;
     }
     
-    // По умолчанию выбираем все фотографии с координатами
-    setSelectedPhotoIds(new Set(photosWithCoords.map(p => p.id)));
-    
-    // Открываем модальное окно выбора фотографий
-    setIsCheckModalOpen(true);
-    setShowSelectMode(true);
+    // Используем функцию из useModal для открытия диалогового окна
+    // и передаем ей обработчик выбранных фотографий
+    if (typeof window !== 'undefined') {
+      const openPhotoModal = () => {
+        // По умолчанию выбираем все фотографии с координатами
+        setSelectedPhotoIds(new Set(photosWithCoords.map(p => p.id)));
+        
+        // Открываем модальное окно выбора фотографий
+        setIsCheckModalOpen(true);
+        setShowSelectMode(true);
+      };
+      
+      // Немного отложим открытие окна, чтобы избежать конфликтов с другими окнами
+      setTimeout(() => {
+        openPhotoModal();
+      }, 50);
+    }
   };
   
   // Определение общего статуса безопасности

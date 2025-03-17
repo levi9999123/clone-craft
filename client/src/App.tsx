@@ -2,6 +2,9 @@ import { Switch, Route } from "wouter";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
 import { PhotoProvider } from "@/context/PhotoContext";
+import { ModalProvider } from "@/context/ModalContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { Toaster } from "@/components/ui/toaster";
 
 function Router() {
   return (
@@ -14,9 +17,14 @@ function Router() {
 
 function App() {
   return (
-    <PhotoProvider>
-      <Router />
-    </PhotoProvider>
+    <ThemeProvider>
+      <ModalProvider>
+        <PhotoProvider>
+          <Router />
+          <Toaster />
+        </PhotoProvider>
+      </ModalProvider>
+    </ThemeProvider>
   );
 }
 
