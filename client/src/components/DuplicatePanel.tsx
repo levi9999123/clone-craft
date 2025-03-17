@@ -1,6 +1,7 @@
 import { usePhotoContext } from '@/context/PhotoContext';
 import PhotoItem from './PhotoItem';
 import { calculateDistance } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface DuplicatePanelProps {
   onClose: () => void;
@@ -8,6 +9,7 @@ interface DuplicatePanelProps {
 
 export default function DuplicatePanel({ onClose }: DuplicatePanelProps) {
   const { duplicateGroups, selectPhoto, removePhoto } = usePhotoContext();
+  const { toast } = useToast();
   
   // Функция для отображения расстояния между точками
   const getDistanceDisplay = (photo: any, basePhoto: any) => {

@@ -11,6 +11,7 @@ interface NearbyPanelProps {
 
 export default function NearbyPanel({ onClose }: NearbyPanelProps) {
   const { photos, selectedPhoto, selectPhoto, removePhoto } = usePhotoContext();
+  const { toast } = useToast();
   const [nearbyPhotos, setNearbyPhotos] = useState<Photo[]>([]);
   const [searchRadius, setSearchRadius] = useState(1); // default 1km
   const [showLines, setShowLines] = useState(false);
