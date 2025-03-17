@@ -93,6 +93,7 @@ export default function Home() {
         onOpenPhotoModal={(photo: Photo) => {
           setIsPhotoModalOpen(true);
         }}
+        onPreviewPhoto={(photo: Photo) => setPreviewPhoto(photo)}
         showLoading={showLoading}
         updateLoadingProgress={updateLoadingProgress}
         hideLoading={hideLoading}

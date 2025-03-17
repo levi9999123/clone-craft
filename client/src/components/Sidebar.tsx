@@ -8,6 +8,7 @@ interface SidebarProps {
   onOpenUrlModal: () => void;
   onOpenCoordsModal: () => void;
   onOpenPhotoModal: (photo: any) => void;
+  onPreviewPhoto: (photo: any) => void;
   showLoading: (message: string, total: number) => void;
   updateLoadingProgress: (current: number) => void;
   hideLoading: () => void;
@@ -17,6 +18,7 @@ export default function Sidebar({
   onOpenUrlModal,
   onOpenCoordsModal,
   onOpenPhotoModal,
+  onPreviewPhoto,
   showLoading,
   updateLoadingProgress,
   hideLoading,
@@ -285,7 +287,7 @@ export default function Sidebar({
               key={photo.id}
               photo={photo}
               onRemove={() => removePhoto(photo.id)}
-              onClick={() => onOpenPhotoModal(photo)}
+              onClick={() => onPreviewPhoto(photo)}
               isSelected={selectedPhoto?.id === photo.id}
             />
           ))}
