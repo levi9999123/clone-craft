@@ -217,7 +217,7 @@ export default function MapView({
         (window as any).mapInstance = null;
       }
     };
-  }, [mapInitialized, useCluster]);
+  }, [mapInitialized]); // Удалили useCluster из зависимостей, чтобы избежать повторной инициализации
 
   // Обработчик изменения стиля карты
   const handleMapStyleChange = (tileUrl: string) => {
