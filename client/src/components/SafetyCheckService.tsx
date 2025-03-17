@@ -160,6 +160,8 @@ export interface SafetyCheckResult {
   isSafe: boolean;
   restrictedObjects: NearbyObject[];
   warningMessage?: string;
+  closestObject?: NearbyObject | null;
+  distanceToClosest?: number | null;
 }
 
 // Функция проверки безопасности местоположения с использованием API
@@ -182,14 +184,23 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
     // Проверяем, есть ли объекты в опасной близости
     const unsafeObjects = objects.filter(obj => !isSafeDistance(obj.distance));
     
+    // Находим ближайший объект (с минимальным расстоянием)
+    let closestObject = null;
+    if (objects.length > 0) {
+      closestObject = objects.reduce((prev, current) => 
+        (prev.distance < current.distance) ? prev : current
+      );
+    }
+    
+    // Включаем ближайший объект в результат
     const result: SafetyCheckResult = {
       isSafe: unsafeObjects.length === 0,
       restrictedObjects: objects,
-      warningMessage: unsafeObjects.length > 0 
-        ? `Обнаружено ${unsafeObjects.length} объектов в опасной близости (менее ${MINIMUM_SAFE_DISTANCE} метров)`
-        : objects.length > 0
-          ? `Все объекты на безопасном расстоянии (более ${MINIMUM_SAFE_DISTANCE} метров)` 
-          : "Запрещенных объектов поблизости не обнаружено"
+      closestObject: closestObject,
+      distanceToClosest: closestObject ? closestObject.distance : null,
+      warningMessage: closestObject 
+        ? `Ближайший объект: ${closestObject.name} на расстоянии ${closestObject.distance.toFixed(1)}м` 
+        : "Объектов рядом не обнаружено"
     };
     
     return result;

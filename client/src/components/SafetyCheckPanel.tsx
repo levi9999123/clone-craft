@@ -27,7 +27,7 @@ export default function SafetyCheckPanel({
   const [showSelectMode, setShowSelectMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<number>>(new Set());
   const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);
-  const toast = useToast();
+  const { toast } = useToast();
   
   // Отслеживаем изменение выбранной фотографии
   useEffect(() => {
@@ -673,53 +673,52 @@ export default function SafetyCheckPanel({
               <h4 className="font-semibold mb-2">Объекты поблизости ({currentObjectsToShow.length})</h4>
               
               <div className="space-y-2">
-                {currentObjectsToShow.map((obj) => (
-                  <div 
-                    key={obj.id}
-                    className="p-3 rounded-md transition-all mb-3"
-                    style={{
-                      backgroundColor: 'var(--bg)',
-                      border: '1px solid var(--border)',
-                      boxShadow: '0 1px 3px var(--shadow)',
-                      borderLeft: `4px solid ${isSafeDistance(obj.distance) ? 'var(--success)' : 'var(--error)'}`
-                    }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="font-medium mr-2 flex-1">{obj.name || 'Здание'}</div>
-                      <div className="text-sm font-bold whitespace-nowrap" 
-                        style={{ 
-                          color: isSafeDistance(obj.distance) ? 'var(--success)' : 'var(--error)' 
-                        }}
-                      >
-                        {obj.distance.toFixed(1)} м
-                      </div>
+                {/* Показываем только один объект - самый ближайший */}
+                <div 
+                  key={currentObjectsToShow[0].id}
+                  className="p-3 rounded-md transition-all mb-3"
+                  style={{
+                    backgroundColor: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 1px 3px var(--shadow)',
+                    borderLeft: `4px solid ${isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success)' : 'var(--error)'}`
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="font-medium mr-2 flex-1">{currentObjectsToShow[0].name || 'Здание'}</div>
+                    <div className="text-sm font-bold whitespace-nowrap" 
+                      style={{ 
+                        color: isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success)' : 'var(--error)' 
+                      }}
+                    >
+                      {currentObjectsToShow[0].distance.toFixed(1)} м
                     </div>
+                  </div>
                     
-                    {obj.type && obj.type !== 'Не определен' && (
+                    {currentObjectsToShow[0].type && currentObjectsToShow[0].type !== 'Не определен' && (
                       <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                         <span className="inline-block bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 mr-1">
-                          {obj.type}
+                          {currentObjectsToShow[0].type}
                         </span>
                       </div>
                     )}
                     
                     <div className="text-xs mt-2 flex justify-between items-center" style={{ color: 'var(--text-secondary)' }}>
                       <div>
-                        Координаты: {obj.lat?.toFixed(5)}, {obj.lon?.toFixed(5)}
+                        Координаты: {currentObjectsToShow[0].lat?.toFixed(5)}, {currentObjectsToShow[0].lon?.toFixed(5)}
                       </div>
                       <div>
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{
-                          backgroundColor: isSafeDistance(obj.distance) ? 'var(--success-light)' : 'var(--error-light)',
-                          color: isSafeDistance(obj.distance) ? 'var(--success)' : 'var(--error)'
+                          backgroundColor: isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success-light)' : 'var(--error-light)',
+                          color: isSafeDistance(currentObjectsToShow[0].distance) ? 'var(--success)' : 'var(--error)'
                         }}>
-                          {isSafeDistance(obj.distance) 
+                          {isSafeDistance(currentObjectsToShow[0].distance) 
                             ? <span>✓ Допустимо</span> 
                             : <span>✕ Не допустимо</span>}
                         </span>
                       </div>
                     </div>
                   </div>
-                ))}
               </div>
             </div>
           )}
