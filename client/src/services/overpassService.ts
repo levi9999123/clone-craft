@@ -1,7 +1,7 @@
 import { calculateDistanceInMeters, NearbyObject, enrichObjectsWithTypeInfo } from '../components/SafetyCheckService';
 
 // Базовый URL API Overpass
-const OVERPASS_API_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_API_URL = 'https://overpass.private.coffee/api/interpreter';
 
 // Максимальное расстояние поиска в метрах
 const DEFAULT_SEARCH_RADIUS = 200;

@@ -9,12 +9,13 @@ import SafetyCheckPanel from '@/components/SafetyCheckPanel';
 import PhotoModal from '@/components/modals/PhotoModal';
 import URLModal from '@/components/modals/URLModal';
 import CoordsModal from '@/components/modals/CoordsModal';
+import PhotoPreview from '@/components/PhotoPreview';
 import { Photo } from '@/lib/utils';
 import { NearbyObject } from '@/components/SafetyCheckService';
 import { checkLocationSafety } from '@/services/overpassService';
 
 export default function Home() {
-  const { selectedPhoto } = usePhotoContext();
+  const { selectedPhoto, photos } = usePhotoContext();
   const [isPanelVisible, setIsPanelVisible] = useState<'nearby' | 'duplicate' | 'safety' | null>(null);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
@@ -22,6 +23,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0, message: '' });
   const [restrictedObjects, setRestrictedObjects] = useState<NearbyObject[]>([]);
+  const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
 
   // Эффект для отображения панели при выборе фото
   useEffect(() => {
@@ -116,6 +118,7 @@ export default function Home() {
       {isPhotoModalOpen && <PhotoModal onClose={() => setIsPhotoModalOpen(false)} />}
       {isUrlModalOpen && <URLModal onClose={() => setIsUrlModalOpen(false)} />}
       {isCoordsModalOpen && <CoordsModal onClose={() => setIsCoordsModalOpen(false)} />}
+      {previewPhoto && <PhotoPreview photo={previewPhoto} onClose={() => setPreviewPhoto(null)} />}
 
       {/* Меню быстрых действий */}
       <QuickActionMenu 

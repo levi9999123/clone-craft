@@ -29,111 +29,184 @@ export default function MapView({
   const [useAnimation, setUseAnimation] = useState(true);
   const [useCluster, setUseCluster] = useState(true);
   
+  // Функция для динамической загрузки Leaflet
+  const loadLeafletScripts = () => {
+    return new Promise<void>((resolve) => {
+      // Проверка, загружен ли уже Leaflet
+      if (window.L) {
+        console.log("Leaflet уже загружен");
+        resolve();
+        return;
+      }
+
+      // Загрузка основного CSS Leaflet
+      const leafletCss = document.createElement('link');
+      leafletCss.rel = 'stylesheet';
+      leafletCss.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      leafletCss.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+      leafletCss.crossOrigin = '';
+      document.head.appendChild(leafletCss);
+
+      // Загрузка CSS MarkerCluster
+      const clusterCss = document.createElement('link');
+      clusterCss.rel = 'stylesheet';
+      clusterCss.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
+      document.head.appendChild(clusterCss);
+
+      const clusterDefaultCss = document.createElement('link');
+      clusterDefaultCss.rel = 'stylesheet';
+      clusterDefaultCss.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
+      document.head.appendChild(clusterDefaultCss);
+
+      // Загрузка JS Leaflet
+      const leafletScript = document.createElement('script');
+      leafletScript.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      leafletScript.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+      leafletScript.crossOrigin = '';
+      document.body.appendChild(leafletScript);
+
+      // После загрузки Leaflet загружаем MarkerCluster
+      leafletScript.onload = () => {
+        console.log("Leaflet загружен, загружаем MarkerCluster");
+        const clusterScript = document.createElement('script');
+        clusterScript.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
+        document.body.appendChild(clusterScript);
+
+        clusterScript.onload = () => {
+          console.log("MarkerCluster загружен");
+          resolve();
+        };
+        
+        clusterScript.onerror = (e) => {
+          console.error("Ошибка загрузки MarkerCluster:", e);
+          resolve(); // Продолжаем даже при ошибке загрузки
+        };
+      };
+      
+      leafletScript.onerror = (e) => {
+        console.error("Ошибка загрузки Leaflet:", e);
+        resolve(); // Продолжаем даже при ошибке загрузки
+      };
+    });
+  };
+
   // Initialize map
   useEffect(() => {
     if (mapInitialized) return;
     
     console.log("Начало эффекта инициализации карты, mapInitialized =", mapInitialized);
     
-    // Проверим наличие Leaflet в глобальной области
-    const initMap = () => {
-      if (!mapContainerRef.current) {
-        console.error("Контейнер для карты не найден!");
-        return;
-      }
+    // Проверяем и при необходимости загружаем скрипты Leaflet
+    async function prepareAndInitMap() {
+      await loadLeafletScripts();
       
-      if (typeof window === 'undefined' || !window.L) {
-        console.error("Leaflet не найден в глобальной области!");
-        return;
-      }
-      
-      try {
-        console.log("Инициализация карты Leaflet...");
-        const L = window.L;
+      // Небольшая задержка после загрузки скриптов
+      setTimeout(() => {
+        // Проверим наличие Leaflet в глобальной области
+        console.log("Страница загружена, Leaflet доступен:", !!window.L);
         
-        // Создаем карту с явными размерами
-        const mapElement = mapContainerRef.current;
-        
-        // Проверяем, имеет ли контейнер карты нормальный размер
-        console.log("Размеры контейнера карты:", 
-          mapElement.offsetWidth, 
-          mapElement.offsetHeight
-        );
-        
-        // Создание карты с улучшенными опциями
-        const map = L.map(mapElement, {
-          center: [55.7558, 37.6173],
-          zoom: 6,
-          zoomControl: true,
-          // Добавляем дополнительные настройки
-          fadeAnimation: true,
-          zoomAnimation: true,
-          markerZoomAnimation: true,
-          // Опции для лучшего поведения на мобильных устройствах
-          tap: true,
-          dragging: true,
-          attributionControl: true,
-        });
-        
-        // Добавление тайлов OpenStreetMap
-        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 19
-        }).addTo(map);
-        
-        tileLayerRef.current = tileLayer;
-        
-        // Создание группы маркеров в зависимости от настроек
-        let markers;
-        if (typeof L.markerClusterGroup === 'function' && useCluster) {
-          console.log("Используем MarkerClusterGroup");
-          markers = L.markerClusterGroup({
-            showCoverageOnHover: true,
-            zoomToBoundsOnClick: true,
-            spiderfyOnMaxZoom: true,
-            removeOutsideVisibleBounds: true,
-            disableClusteringAtZoom: 18
-          });
-        } else {
-          console.log(useCluster 
-            ? "MarkerClusterGroup недоступен, используем LayerGroup" 
-            : "Кластеризация отключена, используем LayerGroup");
-          markers = L.layerGroup();
+        if (window.L && window.L.markerClusterGroup) {
+          console.log("MarkerCluster успешно загружен");
         }
         
-        map.addLayer(markers);
+        const initMap = () => {
+          if (!mapContainerRef.current) {
+            console.error("Контейнер для карты не найден!");
+            return;
+          }
+          
+          if (typeof window === 'undefined' || !window.L) {
+            console.error("Leaflet не найден в глобальной области!");
+            return;
+          }
+          
+          try {
+            console.log("Инициализация карты Leaflet...");
+            const L = window.L;
+            
+            // Создаем карту с явными размерами
+            const mapElement = mapContainerRef.current;
+            
+            // Проверяем, имеет ли контейнер карты нормальный размер
+            console.log("Размеры контейнера карты:", 
+              mapElement.offsetWidth, 
+              mapElement.offsetHeight
+            );
+            
+            // Создание карты с улучшенными опциями
+            const map = L.map(mapElement, {
+              center: [55.7558, 37.6173],
+              zoom: 6,
+              zoomControl: true,
+              // Добавляем дополнительные настройки
+              fadeAnimation: true,
+              zoomAnimation: true,
+              markerZoomAnimation: true,
+              // Опции для лучшего поведения на мобильных устройствах
+              tap: true,
+              dragging: true,
+              attributionControl: true,
+            });
+            
+            // Добавление тайлов OpenStreetMap
+            const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              maxZoom: 19
+            }).addTo(map);
+            
+            tileLayerRef.current = tileLayer;
+            
+            // Создание группы маркеров в зависимости от настроек
+            let markers;
+            if (typeof L.markerClusterGroup === 'function' && useCluster) {
+              console.log("Используем MarkerClusterGroup");
+              markers = L.markerClusterGroup({
+                showCoverageOnHover: true,
+                zoomToBoundsOnClick: true,
+                spiderfyOnMaxZoom: true,
+                removeOutsideVisibleBounds: true,
+                disableClusteringAtZoom: 18
+              });
+            } else {
+              console.log(useCluster 
+                ? "MarkerClusterGroup недоступен, используем LayerGroup" 
+                : "Кластеризация отключена, используем LayerGroup");
+              markers = L.layerGroup();
+            }
+            
+            map.addLayer(markers);
+            
+            // Добавление элементов управления масштабом
+            L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+            
+            // Перерасчет размера карты после инициализации
+            setTimeout(() => {
+              map.invalidateSize(true);
+              console.log("Принудительно пересчитаны размеры карты");
+            }, 500);
+            
+            mapRef.current = map;
+            markersRef.current = markers;
+            // Сохраняем экземпляр карты в глобальной области для доступа из других компонентов
+            (window as any).mapInstance = map;
+            setMapInitialized(true);
+            
+            console.log("Карта создана успешно!");
+          } catch (error) {
+            console.error("Ошибка при инициализации карты:", error);
+          }
+        };
         
-        // Добавление элементов управления масштабом
-        L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
-        
-        // Перерасчет размера карты после инициализации
-        setTimeout(() => {
-          map.invalidateSize(true);
-          console.log("Принудительно пересчитаны размеры карты");
-        }, 500);
-        
-        mapRef.current = map;
-        markersRef.current = markers;
-        // Сохраняем экземпляр карты в глобальной области для доступа из других компонентов
-        (window as any).mapInstance = map;
-        setMapInitialized(true);
-        
-        console.log("Карта создана успешно!");
-      } catch (error) {
-        console.error("Ошибка при инициализации карты:", error);
-      }
-    };
+        initMap();
+      }, 100);
+    }
     
     console.log("Запуск инициализации карты...");
-    // Задержка инициализации карты для уверенности, что DOM загружен
-    const timerId = setTimeout(() => {
-      initMap();
-    }, 200);
+    prepareAndInitMap();
     
     // Очистка при размонтировании
     return () => {
       console.log("!! КОМПОНЕНТ РАЗМОНТИРУЕТСЯ !!");
-      clearTimeout(timerId);
       if (mapRef.current) {
         console.log("Удаление карты при размонтировании компонента");
         mapRef.current.remove();
@@ -339,10 +412,11 @@ export default function MapView({
             style={{ 
               backgroundColor: isPanelVisible === 'safety' ? 'var(--accent)' : 'var(--error)', 
               textShadow: '0px 1px 2px var(--shadow-strong)',
-              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`,
+              opacity: selectedPhoto ? 1 : 0.7, 
+              cursor: selectedPhoto ? 'pointer' : 'not-allowed'
             }}
             onClick={onToggleSafetyPanel}
-            disabled={!selectedPhoto}
           >
             <i className="fas fa-shield-alt mr-1"></i> Безопасность
           </button>
