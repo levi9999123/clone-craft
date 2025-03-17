@@ -139,7 +139,8 @@ export default function Home() {
     }
   };
   
-  const toggleSafetyPanel = async () => {
+  // Просто открывает/закрывает панель проверки безопасности без автоматической проверки
+  const toggleSafetyPanel = () => {
     try {
       // Проверяем наличие выбранной фотографии перед открытием панели
       if (!selectedPhoto) {
@@ -161,34 +162,15 @@ export default function Home() {
         return;
       }
       
+      // Очищаем результаты при открытии панели
+      if (isPanelVisible !== 'safety') {
+        setRestrictedObjects([]);
+      }
+      
       // Переключаем панель только если есть выбранное фото с координатами
       setIsPanelVisible(current => current === 'safety' ? null : 'safety');
-      
-      // Если панель уже открыта с результатами для этого фото, не делаем повторный запрос
-      const existingResults = restrictedObjects.length > 0;
-      if (isPanelVisible !== 'safety' && !existingResults) {
-        showLoading('Проверка безопасности местоположения...', 1);
-        
-        try {
-          // Получаем список близлежащих запрещенных объектов
-          const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon);
-          setRestrictedObjects(objects);
-          console.log('Обнаружено объектов вблизи: ', objects.length);
-        } catch (error) {
-          console.error('Ошибка при проверке безопасности:', error);
-          // Отображаем уведомление об ошибке пользователю
-          toast({
-            title: "Ошибка проверки",
-            description: "Не удалось выполнить проверку безопасности. Попробуйте еще раз.",
-            variant: "destructive"
-          });
-        } finally {
-          hideLoading();
-        }
-      }
     } catch (error) {
-      console.error('Непредвиденная ошибка при открытии панели безопасности:', error);
-      hideLoading();
+      console.error('Ошибка при открытии панели безопасности:', error);
     }
   };
 

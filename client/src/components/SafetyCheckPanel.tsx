@@ -311,7 +311,7 @@ export default function SafetyCheckPanel({
   const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
   
   return (
-    <div className="absolute top-14 left-3 z-[999] shadow-lg rounded-lg p-4 max-w-md w-full h-auto max-h-[80vh] overflow-y-auto"
+    <div className="absolute top-14 right-3 z-[999] shadow-lg rounded-lg p-4 max-w-md w-full h-auto max-h-[80vh] overflow-y-auto"
       style={{
         backdropFilter: 'blur(10px)',
         backgroundColor: 'var(--panel-bg)',
@@ -631,7 +631,7 @@ export default function SafetyCheckPanel({
                 {currentObjectsToShow.map((obj) => (
                   <div 
                     key={obj.id}
-                    className="p-3 rounded-md transition-all"
+                    className="p-3 rounded-md transition-all mb-3"
                     style={{
                       backgroundColor: 'var(--bg)',
                       border: '1px solid var(--border)',
@@ -639,9 +639,9 @@ export default function SafetyCheckPanel({
                       borderLeft: `4px solid ${isSafeDistance(obj.distance) ? 'var(--success)' : 'var(--error)'}`
                     }}
                   >
-                    <div className="flex justify-between">
-                      <div className="font-medium">{obj.name}</div>
-                      <div className="text-sm font-bold" 
+                    <div className="flex justify-between items-start">
+                      <div className="font-medium mr-2 flex-1">{obj.name || 'Здание'}</div>
+                      <div className="text-sm font-bold whitespace-nowrap" 
                         style={{ 
                           color: isSafeDistance(obj.distance) ? 'var(--success)' : 'var(--error)' 
                         }}
@@ -650,12 +650,27 @@ export default function SafetyCheckPanel({
                       </div>
                     </div>
                     
-                    <div className="text-xs mt-1 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-                      <div>Тип: {obj.type}</div>
+                    {obj.type && obj.type !== 'Не определен' && (
+                      <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="inline-block bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 mr-1">
+                          {obj.type}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="text-xs mt-2 flex justify-between items-center" style={{ color: 'var(--text-secondary)' }}>
                       <div>
-                        {isSafeDistance(obj.distance) 
-                          ? <span style={{ color: 'var(--success)' }}>✓ Допустимо</span> 
-                          : <span style={{ color: 'var(--error)' }}>✕ Не допустимо</span>}
+                        Координаты: {obj.lat?.toFixed(5)}, {obj.lon?.toFixed(5)}
+                      </div>
+                      <div>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{
+                          backgroundColor: isSafeDistance(obj.distance) ? 'var(--success-light)' : 'var(--error-light)',
+                          color: isSafeDistance(obj.distance) ? 'var(--success)' : 'var(--error)'
+                        }}>
+                          {isSafeDistance(obj.distance) 
+                            ? <span>✓ Допустимо</span> 
+                            : <span>✕ Не допустимо</span>}
+                        </span>
                       </div>
                     </div>
                   </div>
