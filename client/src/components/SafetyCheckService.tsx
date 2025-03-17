@@ -167,7 +167,7 @@ export interface SafetyCheckResult {
   distanceToClosest?: number | null;
 }
 
-// Функция проверки безопасности местоположения с использованием API
+// Функция проверки безопасности местоположения с ПРЯМЫМ запросом к API
 export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResult> {
   // Проверяем, есть ли координаты у фотографии
   if (!photo.lat || !photo.lon) {
@@ -179,28 +179,102 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
   }
 
   try {
-    // Используем API для получения объектов поблизости с радиусом 100 метров
-    // Всегда используем новые данные без кэширования
-    const objects = await fetchNearbyObjects(photo.lat, photo.lon, 100);
-    console.log(`Обнаружено объектов вблизи: ${objects.length}`);
+    // ПРЯМОЙ ЗАПРОС К API - БЕЗ ПРОМЕЖУТОЧНЫХ ФУНКЦИЙ
+    // Фиксированный радиус 100м
+    const radius = 100;
+    
+    // Формируем запрос к Overpass API
+    const overpassQuery = `
+      [out:json][timeout:25];
+      (
+        node["amenity"~"school|kindergarten|hospital|clinic|police|fire_station|government|community_centre|nursing_home|prison"](around:${radius},${photo.lat},${photo.lon});
+        way["amenity"~"school|kindergarten|hospital|clinic|police|fire_station|government|community_centre|nursing_home|prison"](around:${radius},${photo.lat},${photo.lon});
+        relation["amenity"~"school|kindergarten|hospital|clinic|police|fire_station|government|community_centre|nursing_home|prison"](around:${radius},${photo.lat},${photo.lon});
+        
+        node["building"~"school|kindergarten|hospital|clinic|government|police|fire_station|civic|public"](around:${radius},${photo.lat},${photo.lon});
+        way["building"~"school|kindergarten|hospital|clinic|government|police|fire_station|civic|public"](around:${radius},${photo.lat},${photo.lon});
+        
+        node["military"](around:${radius},${photo.lat},${photo.lon});
+        way["military"](around:${radius},${photo.lat},${photo.lon});
+        relation["military"](around:${radius},${photo.lat},${photo.lon});
+        
+        node["security_booth"="yes"](around:${radius},${photo.lat},${photo.lon});
+        node["entrance"="emergency"](around:${radius},${photo.lat},${photo.lon});
+        
+        node["barrier"~"checkpoint|gate"](around:${radius},${photo.lat},${photo.lon});
+        way["barrier"~"checkpoint|gate"](around:${radius},${photo.lat},${photo.lon});
+      );
+      out body;
+      >;
+      out skel qt;
+    `;
+    
+    console.log(`Отправка запроса к Overpass API для (${photo.lat}, ${photo.lon})`);
+    
+    // Выполняем запрос напрямую, без использования промежуточных функций
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `data=${encodeURIComponent(overpassQuery)}`,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ошибка Overpass API: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Обрабатываем результаты, создаем объекты с вычисленными расстояниями
+    const objects: NearbyObject[] = [];
+    
+    if (data && data.elements) {
+      data.elements.forEach((element: any) => {
+        // Пропускаем элементы без координат или типа
+        if (!element.lat || !element.lon) return;
+        
+        // Определяем тип объекта
+        const types = determineObjectType(element.tags?.name || element.tags?.amenity || element.tags?.building || '');
+        
+        // Вычисляем расстояние
+        const distance = calculateDistanceInMeters(photo.lat!, photo.lon!, element.lat, element.lon);
+        
+        // Добавляем объект в список
+        objects.push({
+          id: element.id.toString(),
+          name: element.tags?.name || element.tags?.amenity || element.tags?.building || 'Неизвестный объект',
+          type: types[0] || 'other',
+          distance: distance,
+          lat: element.lat,
+          lon: element.lon
+        });
+      });
+    }
+    
+    // Сортируем по расстоянию
+    const sortedObjects = objects.sort((a, b) => a.distance - b.distance);
+    
+    console.log(`Проверка безопасности: найдено ${sortedObjects.length} объектов поблизости от координат (${photo.lat}, ${photo.lon})`);
     
     // Проверяем, есть ли объекты в опасной близости
-    const unsafeObjects = objects.filter(obj => !isSafeDistance(obj.distance));
+    const unsafeObjects = sortedObjects.filter(obj => !isSafeDistance(obj.distance));
     
     // Находим ближайший объект (с минимальным расстоянием)
     let closestObject = null;
-    if (objects.length > 0) {
-      closestObject = objects.reduce((prev, current) => 
-        (prev.distance < current.distance) ? prev : current
-      );
+    let distanceToClosest = null;
+    
+    if (sortedObjects.length > 0) {
+      closestObject = sortedObjects[0]; // Объекты уже отсортированы по расстоянию
+      distanceToClosest = closestObject.distance;
     }
     
-    // Включаем ближайший объект в результат
+    // Формируем результат проверки
     const result: SafetyCheckResult = {
       isSafe: unsafeObjects.length === 0,
-      restrictedObjects: objects,
-      closestObject: closestObject,
-      distanceToClosest: closestObject ? closestObject.distance : null,
+      restrictedObjects: sortedObjects,
+      closestObject,
+      distanceToClosest,
       warningMessage: closestObject 
         ? `Ближайший объект: ${closestObject.name} на расстоянии ${closestObject.distance.toFixed(1)}м` 
         : "Объектов рядом не обнаружено"
@@ -217,38 +291,77 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
   }
 }
 
-// Больше не используем кэширование для Overpass API запросов
-
 // Функция получения объектов вблизи заданной точки
-// Теперь всегда используем свежие данные без кэширования
+// Полностью переписана, чтобы не вызывать дополнительные функции,
+// которые могут создавать рекурсию
 export async function fetchNearbyObjects(lat: number, lon: number, radius: number = 100): Promise<NearbyObject[]> {
   if (!lat || !lon) return [];
   
   try {
-    console.log(`Запрос к Overpass API с координатами ${lat}, ${lon} и радиусом ${radius}м`);
+    // Формируем запрос к Overpass API
+    const overpassQuery = `
+      [out:json][timeout:25];
+      (
+        node(around:${radius},${lat},${lon});
+        way(around:${radius},${lat},${lon});
+        relation(around:${radius},${lat},${lon});
+      );
+      out body;
+      >;
+      out skel qt;
+    `;
     
-    // Импортируем функцию из файла overpassService
-    const { checkLocationSafety } = await import('../services/overpassService');
+    console.log(`Прямой запрос к Overpass API: координаты (${lat}, ${lon}), радиус ${radius}м`);
     
-    // Получаем данные из Overpass API с фиксированным радиусом 100 метров
-    // Всегда используем свежие данные, без кэширования
-    const objects = await checkLocationSafety(lat, lon, radius);
-    console.log(`Получено ${objects.length} объектов от API`);
-    
-    // Если у объектов нет расстояния, вычисляем его
-    objects.forEach(obj => {
-      if (!obj.distance && obj.lat && obj.lon) {
-        obj.distance = calculateDistanceInMeters(lat, lon, obj.lat, obj.lon);
-      }
+    // Выполняем запрос напрямую
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `data=${encodeURIComponent(overpassQuery)}`,
     });
+
+    if (!response.ok) {
+      throw new Error(`Ошибка Overpass API: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
     
-    // Сортируем объекты по расстоянию (ближайшие в начале)
+    // Обрабатываем результаты
+    const objects: NearbyObject[] = [];
+    
+    if (data && data.elements) {
+      data.elements.forEach((element: any) => {
+        // Пропускаем элементы без координат
+        if (!element.lat || !element.lon) return;
+        
+        // Определяем тип объекта
+        const types = determineObjectType(element.tags?.name || element.tags?.amenity || element.tags?.building || '');
+        
+        // Вычисляем расстояние
+        const distance = calculateDistanceInMeters(lat, lon, element.lat, element.lon);
+        
+        // Добавляем объект в список
+        objects.push({
+          id: element.id.toString(),
+          name: element.tags?.name || element.tags?.amenity || element.tags?.building || 'Объект',
+          type: types[0] || 'other',
+          distance: distance,
+          lat: element.lat,
+          lon: element.lon
+        });
+      });
+    }
+    
+    // Сортируем по расстоянию
     const sortedObjects = objects.sort((a, b) => a.distance - b.distance);
     
-    // Всегда возвращаем свежие данные
+    console.log(`Получено ${sortedObjects.length} объектов через прямой API запрос`);
+    
     return sortedObjects;
   } catch (error) {
-    console.error("Ошибка при получении объектов поблизости:", error);
+    console.error("Ошибка при прямом получении объектов:", error);
     return [];
   }
 }
