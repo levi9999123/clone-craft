@@ -6,9 +6,8 @@ import sharp from "sharp";
 import fetch from "node-fetch";
 import FormData from "form-data";
 
-// Создаем хранилище в памяти для multer
-const storage_multer = multer.memoryStorage ? multer.memoryStorage() : undefined;
-const upload = multer({ storage: storage_multer });
+// Создаем хранилище в памяти для multer (используем объект для обхода типизации)
+const upload = multer({});
 const EDEN_AI_API_URL = 'https://api.edenai.run/v2/ocr/ocr';
 const EDEN_AI_API_KEY = process.env.EDEN_AI_API_KEY || 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYzhiMjFlN2QtMDllZS00MDlkLThjNWUtNmVhODUzZmZjZTIyIiwidHlwZSI6ImFwaV90b2tlbiJ9.fJwi4jDh9TXqC1WHmIk_EdjNzbVIgJvXkT08DOfPhAs';
 

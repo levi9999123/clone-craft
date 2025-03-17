@@ -12,156 +12,122 @@ function generateOverpassQuery(lat: number, lon: number, radius: number = DEFAUL
   const safeRadius = Math.min(radius, 500); // не более 500 метров
   
   // Создаем запрос для получения различных типов объектов
-  // Обязательно используем типы node, way и relation для каждого объекта,
-  // чтобы обнаружить все возможные варианты представления объектов на карте
+  // ИСПРАВЛЕНО: Теперь ищем только way и relation (здания и территории)
+  // В OSM границы территорий и зданий хранятся только в way и relation
   return `
     [out:json][timeout:60];
     (
       // Школы и образовательные учреждения - основные теги
-      node["amenity"="school"](around:${safeRadius},${lat},${lon});
       way["amenity"="school"](around:${safeRadius},${lat},${lon});
       relation["amenity"="school"](around:${safeRadius},${lat},${lon});
       
-      node["amenity"="kindergarten"](around:${safeRadius},${lat},${lon});
       way["amenity"="kindergarten"](around:${safeRadius},${lat},${lon});
       relation["amenity"="kindergarten"](around:${safeRadius},${lat},${lon});
       
-      node["amenity"="college"](around:${safeRadius},${lat},${lon});
       way["amenity"="college"](around:${safeRadius},${lat},${lon});
       relation["amenity"="college"](around:${safeRadius},${lat},${lon});
       
-      node["amenity"="university"](around:${safeRadius},${lat},${lon});
       way["amenity"="university"](around:${safeRadius},${lat},${lon});
       relation["amenity"="university"](around:${safeRadius},${lat},${lon});
       
       // Образовательные учреждения - альтернативные теги
-      node["building"="school"](around:${safeRadius},${lat},${lon});
       way["building"="school"](around:${safeRadius},${lat},${lon});
       relation["building"="school"](around:${safeRadius},${lat},${lon});
       
-      node["building"="kindergarten"](around:${safeRadius},${lat},${lon});
       way["building"="kindergarten"](around:${safeRadius},${lat},${lon});
       relation["building"="kindergarten"](around:${safeRadius},${lat},${lon});
       
-      node["building"="university"](around:${safeRadius},${lat},${lon});
       way["building"="university"](around:${safeRadius},${lat},${lon});
       relation["building"="university"](around:${safeRadius},${lat},${lon});
       
       // Детские площадки
-      node["leisure"="playground"](around:${safeRadius},${lat},${lon});
       way["leisure"="playground"](around:${safeRadius},${lat},${lon});
       relation["leisure"="playground"](around:${safeRadius},${lat},${lon});
       
       // Детские учреждения
-      node["amenity"="childcare"](around:${safeRadius},${lat},${lon});
       way["amenity"="childcare"](around:${safeRadius},${lat},${lon});
       relation["amenity"="childcare"](around:${safeRadius},${lat},${lon});
       
       // Полиция и правоохранительные органы
-      node["amenity"="police"](around:${safeRadius},${lat},${lon});
       way["amenity"="police"](around:${safeRadius},${lat},${lon});
       relation["amenity"="police"](around:${safeRadius},${lat},${lon});
       
-      node["building"="police"](around:${safeRadius},${lat},${lon});
       way["building"="police"](around:${safeRadius},${lat},${lon});
       relation["building"="police"](around:${safeRadius},${lat},${lon});
       
       // Медицинские учреждения
-      node["amenity"="hospital"](around:${safeRadius},${lat},${lon});
       way["amenity"="hospital"](around:${safeRadius},${lat},${lon});
       relation["amenity"="hospital"](around:${safeRadius},${lat},${lon});
       
-      node["amenity"="clinic"](around:${safeRadius},${lat},${lon});
       way["amenity"="clinic"](around:${safeRadius},${lat},${lon});
       relation["amenity"="clinic"](around:${safeRadius},${lat},${lon});
       
-      node["amenity"="doctors"](around:${safeRadius},${lat},${lon});
       way["amenity"="doctors"](around:${safeRadius},${lat},${lon});
       relation["amenity"="doctors"](around:${safeRadius},${lat},${lon});
       
-      node["healthcare"="hospital"](around:${safeRadius},${lat},${lon});
       way["healthcare"="hospital"](around:${safeRadius},${lat},${lon});
       relation["healthcare"="hospital"](around:${safeRadius},${lat},${lon});
       
-      node["healthcare"="clinic"](around:${safeRadius},${lat},${lon});
       way["healthcare"="clinic"](around:${safeRadius},${lat},${lon});
       relation["healthcare"="clinic"](around:${safeRadius},${lat},${lon});
       
-      node["healthcare"="doctor"](around:${safeRadius},${lat},${lon});
       way["healthcare"="doctor"](around:${safeRadius},${lat},${lon});
       relation["healthcare"="doctor"](around:${safeRadius},${lat},${lon});
       
-      node["building"="hospital"](around:${safeRadius},${lat},${lon});
       way["building"="hospital"](around:${safeRadius},${lat},${lon});
       relation["building"="hospital"](around:${safeRadius},${lat},${lon});
       
       // Религиозные учреждения
-      node["amenity"="place_of_worship"](around:${safeRadius},${lat},${lon});
       way["amenity"="place_of_worship"](around:${safeRadius},${lat},${lon});
       relation["amenity"="place_of_worship"](around:${safeRadius},${lat},${lon});
       
-      node["building"="church"](around:${safeRadius},${lat},${lon});
       way["building"="church"](around:${safeRadius},${lat},${lon});
       relation["building"="church"](around:${safeRadius},${lat},${lon});
       
-      node["building"="mosque"](around:${safeRadius},${lat},${lon});
       way["building"="mosque"](around:${safeRadius},${lat},${lon});
       relation["building"="mosque"](around:${safeRadius},${lat},${lon});
       
-      node["building"="temple"](around:${safeRadius},${lat},${lon});
       way["building"="temple"](around:${safeRadius},${lat},${lon});
       relation["building"="temple"](around:${safeRadius},${lat},${lon});
       
-      node["building"="cathedral"](around:${safeRadius},${lat},${lon});
       way["building"="cathedral"](around:${safeRadius},${lat},${lon});
       relation["building"="cathedral"](around:${safeRadius},${lat},${lon});
       
       // Государственные и административные здания
-      node["amenity"="townhall"](around:${safeRadius},${lat},${lon});
       way["amenity"="townhall"](around:${safeRadius},${lat},${lon});
       relation["amenity"="townhall"](around:${safeRadius},${lat},${lon});
       
-      node["office"="government"](around:${safeRadius},${lat},${lon});
       way["office"="government"](around:${safeRadius},${lat},${lon});
       relation["office"="government"](around:${safeRadius},${lat},${lon});
       
-      node["building"="public"](around:${safeRadius},${lat},${lon});
       way["building"="public"](around:${safeRadius},${lat},${lon});
       relation["building"="public"](around:${safeRadius},${lat},${lon});
       
-      node["government"](around:${safeRadius},${lat},${lon});
       way["government"](around:${safeRadius},${lat},${lon});
       relation["government"](around:${safeRadius},${lat},${lon});
       
       // Торговые центры и магазины
-      node["shop"="mall"](around:${safeRadius},${lat},${lon});
       way["shop"="mall"](around:${safeRadius},${lat},${lon});
       relation["shop"="mall"](around:${safeRadius},${lat},${lon});
       
-      node["building"="mall"](around:${safeRadius},${lat},${lon});
       way["building"="mall"](around:${safeRadius},${lat},${lon});
       relation["building"="mall"](around:${safeRadius},${lat},${lon});
       
-      node["building"="retail"](around:${safeRadius},${lat},${lon});
       way["building"="retail"](around:${safeRadius},${lat},${lon});
       relation["building"="retail"](around:${safeRadius},${lat},${lon});
       
       // Военные объекты
-      node["landuse"="military"](around:${safeRadius},${lat},${lon});
       way["landuse"="military"](around:${safeRadius},${lat},${lon});
       relation["landuse"="military"](around:${safeRadius},${lat},${lon});
       
-      node["military"](around:${safeRadius},${lat},${lon});
       way["military"](around:${safeRadius},${lat},${lon});
       relation["military"](around:${safeRadius},${lat},${lon});
       
-      // Поиск дополнительно по словам в названии
-      node[name~"школ|колледж|лицей|детский сад|полиц|больниц|клиник|госпиталь|роддом|храм|церковь|собор|мечеть|синагог|правительств|администрац|мэри",i](around:${safeRadius},${lat},${lon});
+      // Поиск дополнительно по словам в названии - ТОЛЬКО для way и relation
       way[name~"школ|колледж|лицей|детский сад|полиц|больниц|клиник|госпиталь|роддом|храм|церковь|собор|мечеть|синагог|правительств|администрац|мэри",i](around:${safeRadius},${lat},${lon});
       relation[name~"школ|колледж|лицей|детский сад|полиц|больниц|клиник|госпиталь|роддом|храм|церковь|собор|мечеть|синагог|правительств|администрац|мэри",i](around:${safeRadius},${lat},${lon});
       
-      // Английские термины
-      node[name~"school|kindergarten|college|university|police|hospital|clinic|church|mosque|temple|government|administration|town hall|city hall",i](around:${safeRadius},${lat},${lon});
+      // Английские термины - ТОЛЬКО для way и relation
       way[name~"school|kindergarten|college|university|police|hospital|clinic|church|mosque|temple|government|administration|town hall|city hall",i](around:${safeRadius},${lat},${lon});
       relation[name~"school|kindergarten|college|university|police|hospital|clinic|church|mosque|temple|government|administration|town hall|city hall",i](around:${safeRadius},${lat},${lon});
     );
