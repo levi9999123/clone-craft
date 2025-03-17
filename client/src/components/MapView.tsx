@@ -134,28 +134,30 @@ export default function MapView({
       
       <div className="absolute top-3 right-3 space-x-2 z-[1000]">
         <button 
-          className={`px-3 py-2 rounded shadow-sm transition-colors ${isPanelVisible === 'nearby' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-blue-700'}`}
+          className={`px-3 py-2 rounded shadow-md transition-colors font-bold ${isPanelVisible === 'nearby' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-blue-700'}`}
+          style={{ backgroundColor: isPanelVisible === 'nearby' ? '#ff9500' : '#007bff', textShadow: '0px 1px 2px rgba(0,0,0,0.2)' }}
           onClick={onToggleNearbyPanel}
         >
           <i className="fas fa-map-marked-alt mr-1"></i> Ближайшие
         </button>
         
         <button 
-          className={`px-3 py-2 rounded shadow-sm transition-colors ${isPanelVisible === 'duplicate' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-blue-700'}`}
+          className={`px-3 py-2 rounded shadow-md transition-colors font-bold ${isPanelVisible === 'duplicate' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-blue-700'}`}
+          style={{ backgroundColor: isPanelVisible === 'duplicate' ? '#ff9500' : '#007bff', textShadow: '0px 1px 2px rgba(0,0,0,0.2)' }}
           onClick={onToggleDuplicatePanel}
         >
           <i className="fas fa-clone mr-1"></i> Дубликаты
         </button>
       </div>
       
-      <div className="map-legend absolute bottom-3 left-3 bg-white p-2 rounded shadow-sm border border-gray-200 text-sm z-[1000]">
-        <div className="flex items-center mb-1">
-          <div className="w-3 h-3 rounded-full bg-primary mr-2"></div>
-          <span>Фото с координатами</span>
+      <div className="map-legend absolute bottom-3 left-3 bg-white p-3 rounded shadow-md border border-gray-300 text-sm z-[1000]" style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
+        <div className="flex items-center mb-2">
+          <div className="w-4 h-4 rounded-full bg-primary mr-2" style={{ backgroundColor: '#007bff', border: '1px solid white', boxShadow: '0 0 3px rgba(0,0,0,0.2)' }}></div>
+          <span className="font-medium">Фото с координатами</span>
         </div>
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded-full bg-accent mr-2"></div>
-          <span>Выбранное фото</span>
+          <div className="w-4 h-4 rounded-full bg-accent mr-2" style={{ backgroundColor: '#ff9500', border: '1px solid white', boxShadow: '0 0 3px rgba(0,0,0,0.2)' }}></div>
+          <span className="font-medium">Выбранное фото</span>
         </div>
       </div>
     </div>
