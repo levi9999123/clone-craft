@@ -2,22 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: #007bff;
+  --accent: #ff9500;
+  --success: #28a745;
+  --error: #dc3545;
+  --bg: #f8f9fa;
+  --sidebar-bg: #ffffff;
+  --photo-bg: #ffffff;
+  --modal-bg: #ffffff;
+  --text: #212529;
+  --border: #dee2e6;
+  --highlight: #e9f5ff;
+  --panel-bg: rgba(255, 255, 255, 0.95);
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-strong: rgba(0, 0, 0, 0.2);
+  --tooltip-bg: rgba(0, 0, 0, 0.75);
+  --text-secondary: #6c757d;
+  --transition-speed: 0.3s;
+  --radius: 8px;
+  --map-bg: #e5e3df;
+}
+
+/* Темная тема */
+.dark-theme {
+  --primary: #1e88e5;
+  --accent: #ff9800;
+  --success: #4caf50;
+  --error: #f44336;
+  --bg: #121212;
+  --sidebar-bg: #1e1e1e;
+  --photo-bg: #2c2c2c;
+  --modal-bg: #1e1e1e;
+  --text: #e0e0e0;
+  --border: #424242;
+  --highlight: #2b3558;
+  --panel-bg: rgba(35, 35, 35, 0.95);
+  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow-strong: rgba(0, 0, 0, 0.5);
+  --text-secondary: #aaaaaa;
+  --map-bg: #242424;
+}
+
 @layer base {
   * {
     @apply border-border;
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased;
     margin: 0;
     padding: 0;
     height: 100vh;
     width: 100vw;
+    background-color: var(--bg);
+    color: var(--text);
   }
   
   html, #root {
     height: 100%;
     width: 100%;
+  }
+  
+  /* Анимации переходов между темами */
+  body, button, div, input, select, textarea {
+    transition: background-color var(--transition-speed) ease,
+                color var(--transition-speed) ease,
+                border-color var(--transition-speed) ease,
+                box-shadow var(--transition-speed) ease;
   }
 }
 

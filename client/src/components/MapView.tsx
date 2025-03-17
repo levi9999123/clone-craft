@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
 import { findDuplicates } from '@/lib/utils';
+import MapSettings from './MapSettings';
 
 interface MapViewProps {
   onToggleNearbyPanel: () => void;
@@ -16,9 +17,13 @@ export default function MapView({
   const { photos, selectPhoto, selectedPhoto, setDuplicateGroups } = usePhotoContext();
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
+  const tileLayerRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapInitialized, setMapInitialized] = useState(false);
-
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [useAnimation, setUseAnimation] = useState(true);
+  const [useCluster, setUseCluster] = useState(true);
+  
   // Initialize map
   useEffect(() => {
     if (mapInitialized) return;
@@ -50,30 +55,51 @@ export default function MapView({
           mapElement.offsetHeight
         );
         
-        // Создание карты
+        // Создание карты с улучшенными опциями
         const map = L.map(mapElement, {
           center: [55.7558, 37.6173],
           zoom: 6,
-          zoomControl: true
+          zoomControl: true,
+          // Добавляем дополнительные настройки
+          fadeAnimation: true,
+          zoomAnimation: true,
+          markerZoomAnimation: true,
+          // Опции для лучшего поведения на мобильных устройствах
+          tap: true,
+          dragging: true,
+          attributionControl: true,
         });
         
         // Добавление тайлов OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxZoom: 19
         }).addTo(map);
         
-        // Создание группы маркеров
+        tileLayerRef.current = tileLayer;
+        
+        // Создание группы маркеров в зависимости от настроек
         let markers;
-        if (typeof L.markerClusterGroup === 'function') {
+        if (typeof L.markerClusterGroup === 'function' && useCluster) {
           console.log("Используем MarkerClusterGroup");
-          markers = L.markerClusterGroup();
+          markers = L.markerClusterGroup({
+            showCoverageOnHover: true,
+            zoomToBoundsOnClick: true,
+            spiderfyOnMaxZoom: true,
+            removeOutsideVisibleBounds: true,
+            disableClusteringAtZoom: 18
+          });
         } else {
-          console.log("MarkerClusterGroup недоступен, используем LayerGroup");
+          console.log(useCluster 
+            ? "MarkerClusterGroup недоступен, используем LayerGroup" 
+            : "Кластеризация отключена, используем LayerGroup");
           markers = L.layerGroup();
         }
         
         map.addLayer(markers);
+        
+        // Добавление элементов управления масштабом
+        L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
         
         // Перерасчет размера карты после инициализации
         setTimeout(() => {
@@ -106,12 +132,77 @@ export default function MapView({
         mapRef.current.remove();
         mapRef.current = null;
         markersRef.current = null;
+        tileLayerRef.current = null;
       }
     };
-  }, []);
+  }, [mapInitialized, useCluster]);
 
-  // Update markers when photos change
-  useEffect(() => {
+  // Обработчик изменения стиля карты
+  const handleMapStyleChange = (tileUrl: string) => {
+    if (!mapRef.current || !tileLayerRef.current) return;
+    
+    const L = window.L;
+    // Удаляем текущий слой с картой
+    mapRef.current.removeLayer(tileLayerRef.current);
+    
+    // Добавляем новый слой с указанным URL
+    const newTileLayer = L.tileLayer(tileUrl, {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(mapRef.current);
+    
+    tileLayerRef.current = newTileLayer;
+  };
+  
+  // Обработчик переключения кластеризации
+  const handleToggleCluster = (enabled: boolean) => {
+    setUseCluster(enabled);
+    
+    // Для изменения кластеризации нужно полностью пересоздать маркеры
+    if (mapRef.current && mapInitialized) {
+      const L = window.L;
+      
+      // Сначала удалим текущую группу маркеров
+      if (markersRef.current) {
+        mapRef.current.removeLayer(markersRef.current);
+      }
+      
+      // Создаем новую группу маркеров в зависимости от настроек
+      let newMarkers;
+      if (typeof L.markerClusterGroup === 'function' && enabled) {
+        newMarkers = L.markerClusterGroup({
+          showCoverageOnHover: true,
+          zoomToBoundsOnClick: true,
+          spiderfyOnMaxZoom: true,
+          removeOutsideVisibleBounds: true,
+          disableClusteringAtZoom: 18
+        });
+      } else {
+        newMarkers = L.layerGroup();
+      }
+      
+      mapRef.current.addLayer(newMarkers);
+      markersRef.current = newMarkers;
+      
+      // Перерисуем все маркеры
+      updateMarkers();
+    }
+  };
+  
+  // Обработчик переключения анимаций
+  const handleToggleAnimations = (enabled: boolean) => {
+    setUseAnimation(enabled);
+    
+    // Применяем настройки анимации к карте
+    if (mapRef.current) {
+      mapRef.current.options.fadeAnimation = enabled;
+      mapRef.current.options.zoomAnimation = enabled;
+      mapRef.current.options.markerZoomAnimation = enabled;
+    }
+  };
+  
+  // Функция обновления маркеров (вынесена отдельно для повторного использования)
+  const updateMarkers = () => {
     if (!mapRef.current || !markersRef.current || !mapInitialized) return;
     if (typeof window === 'undefined' || !window.L) return;
     
@@ -168,26 +259,32 @@ export default function MapView({
     if (hasValidCoords && bounds.isValid()) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
+  };
+
+  // Update markers when photos change
+  useEffect(() => {
+    updateMarkers();
   }, [photos, selectedPhoto, mapInitialized, selectPhoto, setDuplicateGroups]);
 
-  // Center map on selected photo
+  // Center map on selected photo with animation
   useEffect(() => {
     if (!mapRef.current || !selectedPhoto || selectedPhoto.lat === null || selectedPhoto.lon === null) return;
     
-    mapRef.current.setView([selectedPhoto.lat, selectedPhoto.lon], 15);
-  }, [selectedPhoto]);
+    const options = useAnimation ? { animate: true, duration: 0.8 } : { animate: false };
+    mapRef.current.setView([selectedPhoto.lat, selectedPhoto.lon], 15, options);
+  }, [selectedPhoto, useAnimation]);
 
   return (
-    <div id="map-container" className="flex-grow relative" style={{ minHeight: '100%', minWidth: '100%', background: '#e5e3df' }}>
-      <div id="map" ref={mapContainerRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10, background: '#e5e3df' }}></div>
+    <div id="map-container" className="flex-grow relative" style={{ minHeight: '100%', minWidth: '100%', background: 'var(--map-bg)' }}>
+      <div id="map" ref={mapContainerRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10, background: 'var(--map-bg)' }}></div>
       
-      <div className="absolute top-3 right-3 space-x-2 z-[1000]">
+      <div className="absolute top-3 right-3 space-x-2 z-[1000] flex">
         <button 
           className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
           style={{ 
-            backgroundColor: isPanelVisible === 'nearby' ? '#ff9500' : '#007bff', 
-            textShadow: '0px 1px 2px rgba(0,0,0,0.3)',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.2), 0 0 0 2px rgba(255,255,255,0.2)'
+            backgroundColor: isPanelVisible === 'nearby' ? 'var(--accent)' : 'var(--primary)', 
+            textShadow: '0px 1px 2px var(--shadow-strong)',
+            boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
           }}
           onClick={onToggleNearbyPanel}
         >
@@ -197,37 +294,59 @@ export default function MapView({
         <button 
           className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
           style={{ 
-            backgroundColor: isPanelVisible === 'duplicate' ? '#ff9500' : '#007bff', 
-            textShadow: '0px 1px 2px rgba(0,0,0,0.3)',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.2), 0 0 0 2px rgba(255,255,255,0.2)'
+            backgroundColor: isPanelVisible === 'duplicate' ? 'var(--accent)' : 'var(--primary)', 
+            textShadow: '0px 1px 2px var(--shadow-strong)',
+            boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
           }}
           onClick={onToggleDuplicatePanel}
         >
           <i className="fas fa-clone mr-1"></i> Дубликаты
         </button>
+        
+        <button 
+          className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+          style={{ 
+            backgroundColor: isSettingsOpen ? 'var(--accent)' : 'var(--primary)', 
+            textShadow: '0px 1px 2px var(--shadow-strong)',
+            boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+          }}
+          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          title="Настройки карты"
+        >
+          <i className="fas fa-cog mr-1"></i> Настройки
+        </button>
       </div>
+      
+      {/* Панель настроек карты */}
+      <MapSettings 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)}
+        onChangeMapStyle={handleMapStyleChange}
+        onToggleCluster={handleToggleCluster}
+        onToggleAnimations={handleToggleAnimations}
+      />
       
       <div className="map-legend absolute bottom-3 left-3 p-3 rounded shadow-lg text-sm z-[1000]" 
         style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-          border: '1px solid rgba(0,0,0,0.1)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15), 0 0 0 2px rgba(255,255,255,0.6)'
+          backgroundColor: 'var(--panel-bg)', 
+          border: '1px solid var(--border)',
+          boxShadow: '0 2px 8px var(--shadow), 0 0 0 2px rgba(255,255,255,0.1)'
         }}>
         <div className="flex items-center mb-2">
           <div className="w-5 h-5 rounded-full mr-2" 
             style={{ 
-              backgroundColor: '#007bff', 
-              border: '2px solid white', 
-              boxShadow: '0 0 4px rgba(0,0,0,0.3)' 
+              backgroundColor: 'var(--primary)', 
+              border: '2px solid var(--bg)', 
+              boxShadow: '0 0 4px var(--shadow)' 
             }}></div>
           <span className="font-semibold">Фото с координатами</span>
         </div>
         <div className="flex items-center">
           <div className="w-5 h-5 rounded-full mr-2" 
             style={{ 
-              backgroundColor: '#ff9500', 
-              border: '2px solid white', 
-              boxShadow: '0 0 4px rgba(0,0,0,0.3)' 
+              backgroundColor: 'var(--accent)', 
+              border: '2px solid var(--bg)', 
+              boxShadow: '0 0 4px var(--shadow)' 
             }}></div>
           <span className="font-semibold">Выбранное фото</span>
         </div>
