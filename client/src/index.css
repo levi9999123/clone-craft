@@ -134,36 +134,49 @@
 }
 
 /* Улучшаем видимость кнопок в попапах */
+.copy-button,
+.map-button,
 .leaflet-popup-content button {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   background-color: #007bff !important;
   color: white !important;
-  border: none !important;
-  border-radius: 3px !important;
-  width: 26px !important;
-  height: 26px !important;
-  margin-left: 6px !important;
+  border: 2px solid white !important;
+  border-radius: 4px !important;
+  width: 30px !important;
+  height: 30px !important;
+  margin-left: 8px !important;
   cursor: pointer !important;
-  transition: background-color 0.2s !important;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.3s !important;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4) !important;
   opacity: 1 !important;
+  position: relative !important;
+  z-index: 9999 !important;
 }
 
+.copy-button:hover,
+.map-button:hover,
 .leaflet-popup-content button:hover {
   background-color: #0056b3 !important;
   transform: scale(1.1) !important;
 }
 
+.copy-button i,
+.map-button i,
 .leaflet-popup-content button i {
-  font-size: 14px !important;
+  font-size: 16px !important;
+  color: white !important;
+  opacity: 1 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Кнопки на маркерах - ВСЕГДА видимы */
 .leaflet-marker-icon button,
 .leaflet-marker-icon .button,
-.marker-buttons {
+.marker-buttons,
+.leaflet-popup button,
+[id^="marker-"] {
   opacity: 1 !important;
   visibility: visible !important;
   display: flex !important;
@@ -185,7 +198,9 @@
 
 .leaflet-marker-icon button:hover,
 .leaflet-marker-icon .button:hover,
-.marker-buttons:hover {
+.marker-buttons:hover,
+.leaflet-popup button:hover,
+[id^="marker-"]:hover {
   transform: scale(1.1) !important;
   background-color: rgba(0, 82, 204, 0.95) !important;
 }

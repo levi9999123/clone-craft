@@ -508,20 +508,8 @@ export default function MapView({
             <strong>${photo.name}</strong><br>
             <div style="display: flex; align-items: center; justify-content: center; margin: 4px 0;">
               <span>${photo.lat.toFixed(6)}, ${photo.lon.toFixed(6)}</span>
-              <button id="${markerId}" title="Скопировать координаты" style="
-                margin-left: 6px;
-                background-color: var(--primary);
-                color: white;
-                border: none;
-                border-radius: 3px;
-                width: 22px;
-                height: 22px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-              ">
-                <i class="fas fa-copy" style="font-size: 12px;"></i>
+              <button id="${markerId}" title="Скопировать координаты" class="map-button copy-button">
+                <i class="fas fa-copy"></i>
               </button>
               <span id="${markerId}-copied" style="
                 color: green;
