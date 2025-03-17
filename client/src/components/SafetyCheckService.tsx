@@ -303,8 +303,12 @@ function cleanupNearbyObjectsCache() {
 // на основе тегов и названий, с улучшенным определением типа объекта
 export function enrichObjectsWithTypeInfo(objects: any[]): NearbyObject[] {
   return objects.map(obj => {
-    let objectType = 'unknown';
-    let objectName = obj.name || obj.tags?.name || 'Неизвестный объект';
+    let objectType = 'building';
+    let objectName = obj.name || obj.tags?.name || 'Здание';
+    // Получаем адрес объекта, если есть
+    const address = obj.tags?.['addr:street'] ? 
+      `${obj.tags?.['addr:street']}${obj.tags?.['addr:housenumber'] ? ` ${obj.tags?.['addr:housenumber']}` : ''}` : 
+      (obj.tags?.address || '');
     
     // Определяем тип объекта в первую очередь по тегам OSM, если они доступны
     if (obj.tags) {
@@ -427,13 +431,31 @@ export function enrichObjectsWithTypeInfo(objects: any[]): NearbyObject[] {
       }
     }
     
+    // Добавляем адрес к имени объекта, если он есть
+    const displayName = address && !objectName.includes(address) ? 
+      `${objectName}${objectName !== 'Здание' ? ', ' : ' '}${address}` : 
+      objectName;
+      
+    // Определяем категорию безопасности
+    let category = '';
+    if (obj.distance < MINIMUM_SAFE_DISTANCE) {
+      category = 'опасно';
+    } else if (obj.distance < MINIMUM_SAFE_DISTANCE * 1.5) {
+      category = 'предупреждение';
+    } else {
+      category = 'безопасно';
+    }
+    
     return {
       id: obj.id,
-      name: objectName,
+      name: displayName,
       type: objectType,
       distance: obj.distance || 0,
       lat: obj.lat,
-      lon: obj.lon
+      lon: obj.lon,
+      address: address,
+      category: category,
+      tags: obj.tags
     };
   });
 }

@@ -3,8 +3,8 @@ import { calculateDistanceInMeters, NearbyObject, enrichObjectsWithTypeInfo } fr
 // Базовый URL API Overpass
 const OVERPASS_API_URL = 'https://overpass.private.coffee/api/interpreter';
 
-// Максимальное расстояние поиска в метрах
-const DEFAULT_SEARCH_RADIUS = 200;
+// Максимальное расстояние поиска в метрах - установлено 100 метров по запросу пользователя
+const DEFAULT_SEARCH_RADIUS = 100;
 
 // Функция для генерации запроса Overpass QL с учетом различных типов объектов
 function generateOverpassQuery(lat: number, lon: number, radius: number = DEFAULT_SEARCH_RADIUS): string {
