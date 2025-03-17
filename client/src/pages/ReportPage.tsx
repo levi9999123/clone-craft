@@ -142,12 +142,55 @@ export default function ReportPage() {
               
               {/* Содержимое блока фотографии */}
               <div className="p-4">
+                {/* Отображение фотографии */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-gray-100 rounded-lg p-2 flex items-center justify-center" style={{ minHeight: '200px' }}>
+                    {photo.dataUrl ? (
+                      <img 
+                        src={photo.dataUrl} 
+                        alt={photo.name} 
+                        className="max-h-64 max-w-full object-contain rounded" 
+                      />
+                    ) : (
+                      <div className="text-gray-500 flex flex-col items-center justify-center p-4">
+                        <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <p>Фотография: {photo.name}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col">
+                    <div className="mb-2">
+                      <span className="font-semibold">Имя файла:</span> {photo.name}
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Координаты:</span> {photo.lat.toFixed(6)}, {photo.lon.toFixed(6)}
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Статус:</span>{' '}
+                      {hasDangerousObjects ? (
+                        <span className="text-red-600 font-semibold">Обнаружены нарушения безопасного расстояния</span>
+                      ) : photoObjects.length > 0 ? (
+                        <span className="text-yellow-600 font-semibold">Обнаружены объекты на безопасном расстоянии</span>
+                      ) : (
+                        <span className="text-green-600 font-semibold">Запрещенных объектов не обнаружено</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Количество найденных объектов:</span> {photoObjects.length}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Список найденных объектов */}
                 {photoObjects.length === 0 ? (
                   <p className="text-green-600 py-2">Запрещенных объектов поблизости не обнаружено.</p>
                 ) : (
                   <div>
                     <div className="mb-3 flex items-center">
-                      <span className="font-semibold">Найдено объектов: {photoObjects.length}</span>
+                      <span className="font-semibold">Найденные объекты:</span>
                       {hasDangerousObjects && (
                         <span className="ml-3 bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded">
                           Включая объекты на опасном расстоянии

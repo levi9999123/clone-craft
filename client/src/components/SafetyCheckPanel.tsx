@@ -162,7 +162,11 @@ export default function SafetyCheckPanel({
           // Сохраняем отчет в localStorage для открытия в отдельной вкладке
           // Преобразуем Map в массив для сохранения в JSON
           const reportData = {
-            photos: photosWithCoords,
+            photos: photosWithCoords.map(photo => ({
+              ...photo,
+              // Сохраняем превью фото, если доступно
+              dataUrl: photo.dataUrl || null
+            })),
             objectsEntries: Array.from(newCheckedPhotos.entries()),
             date: new Date().toISOString()
           };
@@ -229,7 +233,11 @@ export default function SafetyCheckPanel({
           
           // Сохраняем пустой отчет и открываем вкладку
           const reportData = {
-            photos: photosWithCoords,
+            photos: photosWithCoords.map(photo => ({
+              ...photo,
+              // Сохраняем превью фото, если доступно
+              dataUrl: photo.dataUrl || null
+            })),
             objectsEntries: Array.from(checkedPhotos.entries()),
             date: new Date().toISOString()
           };
@@ -339,6 +347,32 @@ export default function SafetyCheckPanel({
             </>
           )}
         </Button>
+
+        {/* Кнопка для открытия отчета вручную */}
+        {currentObjectsToShow.length > 0 && (
+          <Button 
+            variant="outline" 
+            className="w-full mt-2"
+            onClick={() => {
+              // Сохраняем актуальный отчет перед открытием
+              const reportData = {
+                photos: photos.filter(p => p.lat !== null && p.lon !== null).map(photo => ({
+                  ...photo,
+                  // Сохраняем превью фото, если доступно
+                  dataUrl: photo.dataUrl || null
+                })),
+                objectsEntries: Array.from(checkedPhotos.entries()),
+                date: new Date().toISOString()
+              };
+              
+              localStorage.setItem('safetyCheckReport', JSON.stringify(reportData));
+              window.location.href = '/report';
+            }}
+          >
+            <i className="fas fa-file-alt mr-2"></i>
+            Открыть полный отчет
+          </Button>
+        )}
         
         <div className="text-sm text-gray-600 mt-2">
           <p>
@@ -383,26 +417,6 @@ export default function SafetyCheckPanel({
                 </div>
               </div>
             ))}
-            
-            {/* Кнопка для открытия отчета вручную */}
-            <Button 
-              variant="outline" 
-              className="w-full mt-4"
-              onClick={() => {
-                // Сохраняем актуальный отчет перед открытием
-                const reportData = {
-                  photos: photos.filter(p => p.lat !== null && p.lon !== null),
-                  objectsEntries: Array.from(checkedPhotos.entries()),
-                  date: new Date().toISOString()
-                };
-                
-                localStorage.setItem('safetyCheckReport', JSON.stringify(reportData));
-                window.location.href = '/report';
-              }}
-            >
-              <i className="fas fa-file-alt mr-2"></i>
-              Открыть полный отчет
-            </Button>
           </div>
         </div>
       )}
