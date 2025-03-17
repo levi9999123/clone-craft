@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
-import { findDuplicates } from '@/lib/utils';
+import { findDuplicates, calculateDistance } from '@/lib/utils';
 import MapSettings from './MapSettings';
 import TooltipWrapper from './TooltipWrapper';
 import HelpModal from './modals/HelpModal';

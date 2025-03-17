@@ -3,6 +3,7 @@ import { usePhotoContext } from '@/context/PhotoContext';
 import PhotoItem from './PhotoItem';
 import { findNearbyPhotos, calculateDistance, Photo } from '@/lib/utils';
 import { drawPolylinesBetweenPoints } from './SafetyCheckService';
+import { useToast } from '@/hooks/use-toast';
 
 interface NearbyPanelProps {
   onClose: () => void;

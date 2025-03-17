@@ -12,9 +12,11 @@ import PhotoPreview from '@/components/PhotoPreview';
 import { Photo, calculateDistance, findDuplicates } from '@/lib/utils';
 import { NearbyObject } from '@/components/SafetyCheckService';
 import { checkLocationSafety } from '@/services/overpassService';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
-  const { selectedPhoto, photos } = usePhotoContext();
+  const { selectedPhoto, photos, setDuplicateGroups } = usePhotoContext();
+  const { toast } = useToast();
   const [isPanelVisible, setIsPanelVisible] = useState<'nearby' | 'duplicate' | 'safety' | null>(null);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
@@ -103,7 +105,38 @@ export default function Home() {
   }, [selectedPhoto, isPanelVisible]);
 
   const togglePanel = (panelType: 'nearby' | 'duplicate' | 'safety') => {
-    setIsPanelVisible(current => current === panelType ? null : panelType);
+    if (panelType === 'nearby') {
+      // Для отображения панели близких точек нужно выбрать фото
+      if (!selectedPhoto) {
+        toast({
+          title: "Выберите фотографию",
+          description: "Сначала выберите фото на карте, чтобы найти близкие точки",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setIsPanelVisible(current => current === panelType ? null : panelType);
+    } else if (panelType === 'duplicate') {
+      // Обновляем группы дубликатов перед открытием панели
+      const duplicates = findDuplicates(photos);
+      setDuplicateGroups(duplicates);
+      
+      // Проверяем, есть ли дубликаты
+      if (duplicates.length === 0) {
+        toast({
+          title: "Близких точек не найдено",
+          description: "Не найдены точки, расположенные ближе 25 метров друг от друга",
+          variant: "default"
+        });
+        return;
+      }
+      
+      setIsPanelVisible(current => current === panelType ? null : panelType);
+    } else {
+      // Для других типов панелей просто переключаем состояние
+      setIsPanelVisible(current => current === panelType ? null : panelType);
+    }
   };
   
   const toggleSafetyPanel = async () => {
