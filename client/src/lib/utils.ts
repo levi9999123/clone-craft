@@ -43,6 +43,7 @@ export const truncateFilename = (filename: string, maxLength = 20): string => {
 };
 
 // Find duplicate photos based on coordinates (same location within 10 meters)
+// And find close points (within 25 meters)
 export function findDuplicates(photos: Photo[]): Photo[][] {
   const duplicateGroups: Photo[][] = [];
   const processed = new Set<number>();
@@ -69,14 +70,24 @@ export function findDuplicates(photos: Photo[]): Photo[][] {
         comparePhoto.lon as number
       );
       
-      if (distance < 0.01) { // 10 meters
+      // Точки на расстоянии менее 25 метров (0.025 км) считаются близкими
+      if (distance < 0.025) { // 25 meters
         duplicates.push(comparePhoto);
+        // Добавляем информацию о расстоянии для отображения
+        comparePhoto.distance = distance;
         processed.add(j);
       }
     }
     
     if (duplicates.length > 1) {
-      duplicateGroups.push(duplicates);
+      // Сортируем по расстоянию для лучшего отображения
+      duplicateGroups.push(duplicates.sort((a, b) => {
+        // Базовая точка всегда первая
+        if (a.id === photo.id) return -1;
+        if (b.id === photo.id) return 1;
+        // Сортировка по расстоянию
+        return (a.distance || 0) - (b.distance || 0);
+      }));
     }
     
     processed.add(i);

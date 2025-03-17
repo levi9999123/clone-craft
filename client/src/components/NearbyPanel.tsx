@@ -140,13 +140,13 @@ export default function NearbyPanel({ onClose }: NearbyPanelProps) {
     return (
       <div className="w-80 bg-white shadow-md border-l border-gray-200 overflow-y-auto">
         <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-primary">Ближайшие фотографии</h3>
+          <h3 className="text-lg font-bold text-primary">Близкие точки</h3>
           <button className="text-gray-500 hover:text-primary" onClick={onClose}>
             <i className="fas fa-times"></i>
           </button>
         </div>
         <div className="p-4">
-          <p className="text-gray-500 text-center">Выберите фотографию, чтобы увидеть ближайшие</p>
+          <p className="text-gray-500 text-center">Выберите фотографию, чтобы увидеть близкие точки</p>
         </div>
       </div>
     );
@@ -158,7 +158,7 @@ export default function NearbyPanel({ onClose }: NearbyPanelProps) {
   return (
     <div className="w-80 bg-white shadow-md border-l border-gray-200 overflow-y-auto">
       <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
-        <h3 className="text-lg font-bold text-primary">Ближайшие фотографии</h3>
+        <h3 className="text-lg font-bold text-primary">Близкие точки</h3>
         <button className="text-gray-500 hover:text-primary" onClick={onClose}>
           <i className="fas fa-times"></i>
         </button>
@@ -224,7 +224,7 @@ export default function NearbyPanel({ onClose }: NearbyPanelProps) {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-center">Нет ближайших фотографий в указанном радиусе</p>
+          <p className="text-gray-500 text-center">Нет близких точек (менее 25 м) в указанном радиусе</p>
         )}
       </div>
     </div>

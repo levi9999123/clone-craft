@@ -152,15 +152,37 @@ export default function CoordsModal({ onClose }: CoordsModalProps) {
         
         <div className="p-4 bg-gray-50 flex justify-between space-x-2">
           <div>
-            <label className="text-sm text-gray-600 mr-2">Координаты для загрузки:</label>
-            <input 
-              type="text" 
-              placeholder="Введите координаты в любом формате"
-              className="px-3 py-1.5 border border-gray-300 rounded focus:border-primary focus:outline-none"
-              style={{ width: '300px' }}
-              // Заглушка для будущей реализации
-              onChange={(e) => console.log('Input:', e.target.value)}
-            />
+            <label className="text-sm text-gray-600 mb-1 block">Координаты для загрузки:</label>
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Введите координаты в любом формате"
+                className={`px-3 py-1.5 border rounded focus:outline-none flex-1 ${
+                  inputStatus === 'valid' ? 'border-green-500' : 
+                  inputStatus === 'invalid' ? 'border-red-500' : 'border-gray-300'
+                }`}
+                value={inputCoords}
+                onChange={(e) => handleCoordsInput(e.target.value)}
+              />
+              <Button 
+                variant="default" 
+                size="sm"
+                disabled={inputStatus !== 'valid'}
+                onClick={handleAddCoordinates}
+              >
+                <i className="fas fa-plus mr-1"></i> Добавить
+              </Button>
+            </div>
+            {inputStatus === 'valid' && (
+              <p className="text-xs text-green-600 mt-1">
+                Найдены координаты: {parsedCoords.lat?.toFixed(6)}, {parsedCoords.lon?.toFixed(6)}
+              </p>
+            )}
+            {inputStatus === 'invalid' && (
+              <p className="text-xs text-red-500 mt-1">
+                Не удалось распознать координаты
+              </p>
+            )}
           </div>
         
           <div className="flex space-x-2">

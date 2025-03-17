@@ -51,42 +51,139 @@ async function compressImage(buffer: Buffer): Promise<Buffer> {
 
 // Extract coordinates from OCR data
 function extractCoordinates(data: any): { lat: number | null, lon: number | null } {
-  console.log('Извлечение координат на сервере:', data);
+  console.log('Извлечение координат на сервере...');
 
   let lat = null, lon = null;
 
   if (typeof data === 'string') {
-    const simpleMatch = data.match(/([+-]?\d+\.\d+)\s*,\s*([+-]?\d+\.\d+)/);
+    // Поиск координат в десятичном формате (55.123456, 37.123456)
+    const simpleMatch = data.match(/([+-]?\d+\.\d+)\s*[,;]\s*([+-]?\d+\.\d+)/);
     if (simpleMatch) {
       lat = parseFloat(simpleMatch[1]);
       lon = parseFloat(simpleMatch[2]);
-      console.log('Координаты из строки (простой формат):', { lat, lon });
-      return { lat, lon };
+      
+      // Проверка на валидность координат
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        console.log('Координаты из строки (десятичный формат):', { lat, lon });
+        return { lat, lon };
+      }
     }
 
-    const latMatch = data.match(/(?:Широта|Latitude)[:\s]+([+-]?\d+\.\d+)/i);
-    const lonMatch = data.match(/(?:Долгота|Longitude)[:\s]+([+-]?\d+\.\d+)/i);
+    // Поиск координат с указанием широты и долготы
+    // Например: Широта: 55.123456, Долгота: 37.123456
+    const latMatch = data.match(/(?:Широта|Latitude|шир|lat)[:\s]+([+-]?\d+\.?\d*)/i);
+    const lonMatch = data.match(/(?:Долгота|Longitude|долг|lon)[:\s]+([+-]?\d+\.?\d*)/i);
     if (latMatch && lonMatch) {
       lat = parseFloat(latMatch[1]);
       lon = parseFloat(lonMatch[1]);
-      console.log('Координаты из строки (Широта/Долгота):', { lat, lon });
-      return { lat, lon };
+      
+      // Проверка на валидность координат
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        console.log('Координаты из строки (широта/долгота):', { lat, lon });
+        return { lat, lon };
+      }
     }
 
-    const dmsMatch = data.match(/(\d+)[°\s]+(\d+)'[\s]*(\d+\.?\d*)"?\s*([NS])\s*(\d+)[°\s]+(\d+)'[\s]*(\d+\.?\d*)"?\s*([EW])/i);
+    // Поиск координат в формате DMS (градусы, минуты, секунды)
+    // Например: 55° 7' 24.4416" N, 37° 7' 24.4416" E
+    const dmsMatch = data.match(/(\d+)[°\s]+(\d+)[''′][\s]*(\d+\.?\d*)[""″]?\s*([NSns])\s*[,;]?\s*(\d+)[°\s]+(\d+)[''′][\s]*(\d+\.?\d*)[""″]?\s*([EWew])/i);
     if (dmsMatch) {
-      lat = convertDMSToDD([parseInt(dmsMatch[1]), parseInt(dmsMatch[2]), parseFloat(dmsMatch[3])], dmsMatch[4]);
-      lon = convertDMSToDD([parseInt(dmsMatch[5]), parseInt(dmsMatch[6]), parseFloat(dmsMatch[7])], dmsMatch[8]);
+      lat = convertDMSToDD([parseInt(dmsMatch[1]), parseInt(dmsMatch[2]), parseFloat(dmsMatch[3])], dmsMatch[4].toUpperCase());
+      lon = convertDMSToDD([parseInt(dmsMatch[5]), parseInt(dmsMatch[6]), parseFloat(dmsMatch[7])], dmsMatch[8].toUpperCase());
       console.log('Координаты из DMS:', { lat, lon });
       return { lat, lon };
     }
+    
+    // Поиск координат в формате DM (градусы, минуты)
+    // Например: 55° 7.40736' N, 37° 7.40736' E
+    const dmMatch = data.match(/(\d+)[°\s]+(\d+\.?\d*)[''′]?\s*([NSns])\s*[,;]?\s*(\d+)[°\s]+(\d+\.?\d*)[''′]?\s*([EWew])/i);
+    if (dmMatch) {
+      lat = convertDMSToDD([parseInt(dmMatch[1]), parseFloat(dmMatch[2]), 0], dmMatch[3].toUpperCase());
+      lon = convertDMSToDD([parseInt(dmMatch[4]), parseFloat(dmMatch[5]), 0], dmMatch[6].toUpperCase());
+      console.log('Координаты из DM:', { lat, lon });
+      return { lat, lon };
+    }
+    
+    // Поиск координат в формате с указанием направления
+    // Например: 55.123456 N, 37.123456 E
+    const formattedMatch = data.match(/(\d+\.?\d*)\s*([NSns])\s*[,;]?\s*(\d+\.?\d*)\s*([EWew])/i);
+    if (formattedMatch) {
+      lat = parseFloat(formattedMatch[1]);
+      if (formattedMatch[2].toUpperCase() === 'S') lat = -lat;
+      
+      lon = parseFloat(formattedMatch[3]);
+      if (formattedMatch[4].toUpperCase() === 'W') lon = -lon;
+      
+      // Проверка на валидность координат
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        console.log('Координаты из форматированной строки:', { lat, lon });
+        return { lat, lon };
+      }
+    }
+    
+    // Попытка найти цифры, похожие на координаты
+    const numbersMatch = data.match(/[^\d](\d{1,3}\.?\d{1,8})[^\d].*?[^\d](\d{1,3}\.?\d{1,8})[^\d]/);
+    if (numbersMatch) {
+      const num1 = parseFloat(numbersMatch[1]);
+      const num2 = parseFloat(numbersMatch[2]);
+      
+      // Пытаемся определить, какое число - широта, а какое - долгота
+      if (Math.abs(num1) <= 90 && Math.abs(num2) <= 180) {
+        // num1 может быть широтой, num2 - долготой
+        lat = num1;
+        lon = num2;
+        console.log('Координаты из последовательности чисел:', { lat, lon });
+        return { lat, lon };
+      } else if (Math.abs(num2) <= 90 && Math.abs(num1) <= 180) {
+        // num2 может быть широтой, num1 - долготой
+        lat = num2;
+        lon = num1;
+        console.log('Координаты из последовательности чисел (обратный порядок):', { lat, lon });
+        return { lat, lon };
+      }
+    }
   }
 
-  if (typeof data === 'object' && data.google && data.google.text) {
-    const coords = extractCoordinates(data.google.text);
-    if (coords.lat !== null && coords.lon !== null) {
-      console.log('Координаты из объекта google.text:', coords);
-      return coords;
+  // Если пришел объект от Eden AI
+  if (typeof data === 'object' && data !== null) {
+    // Проверяем поле google.text
+    if (data.google && data.google.text) {
+      const text = data.google.text;
+      const coords = extractCoordinates(text);
+      if (coords.lat !== null && coords.lon !== null) {
+        console.log('Координаты из объекта google.text:', coords);
+        return coords;
+      }
+    }
+    
+    // Проверяем массив extracted_data
+    if (data.extracted_data && Array.isArray(data.extracted_data)) {
+      for (const block of data.extracted_data) {
+        if (block.text) {
+          const coords = extractCoordinates(block.text);
+          if (coords.lat !== null && coords.lon !== null) {
+            console.log('Координаты из блока extracted_data:', coords);
+            return coords;
+          }
+        }
+      }
+    }
+    
+    // Проверяем все строковые поля объекта рекурсивно
+    for (const key in data) {
+      if (typeof data[key] === 'string') {
+        const coords = extractCoordinates(data[key]);
+        if (coords.lat !== null && coords.lon !== null) {
+          console.log(`Координаты из поля ${key}:`, coords);
+          return coords;
+        }
+      } else if (typeof data[key] === 'object' && data[key] !== null) {
+        const coords = extractCoordinates(data[key]);
+        if (coords.lat !== null && coords.lon !== null) {
+          console.log(`Координаты из вложенного объекта ${key}:`, coords);
+          return coords;
+        }
+      }
     }
   }
 
