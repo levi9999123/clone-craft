@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
 import { findDuplicates } from '@/lib/utils';
 import MapSettings from './MapSettings';
-import SearchPanel from './SearchPanel';
 import TooltipWrapper from './TooltipWrapper';
 import HelpModal from './modals/HelpModal';
 import ExportPanel from './ExportPanel';
@@ -31,7 +30,6 @@ export default function MapView({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -598,24 +596,7 @@ export default function MapView({
           </button>
         </TooltipWrapper>
         
-        <TooltipWrapper text="Искать фотографии по параметрам" position="bottom">
-          <button 
-            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
-            style={{ 
-              backgroundColor: isSearchOpen ? 'var(--accent)' : 'var(--primary)', 
-              textShadow: '0px 1px 2px var(--shadow-strong)',
-              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
-            }}
-            onClick={() => {
-              setIsSearchOpen(!isSearchOpen);
-              if (isSettingsOpen) setIsSettingsOpen(false);
-              if (isExportOpen) setIsExportOpen(false);
-              if (isStatsOpen) setIsStatsOpen(false);
-            }}
-          >
-            <i className="fas fa-search mr-1"></i> Поиск
-          </button>
-        </TooltipWrapper>
+
         
         <TooltipWrapper text="Проверка запрещенных объектов поблизости" position="bottom">
           <button 
@@ -720,11 +701,7 @@ export default function MapView({
         onToggleAnimations={handleToggleAnimations}
       />
       
-      {/* Панель поиска фотографий */}
-      <SearchPanel 
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-      />
+
       
       <div className="map-legend absolute bottom-3 left-3 p-3 rounded shadow-lg text-sm z-[1000]" 
         style={{ 
