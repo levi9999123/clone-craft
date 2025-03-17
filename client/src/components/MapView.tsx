@@ -708,6 +708,20 @@ export default function MapView({
             <i className="fas fa-shield-alt mr-1"></i> Проверка объектов
           </button>
         </TooltipWrapper>
+
+        <TooltipWrapper text="Перейти к полному отчету проверки" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: 'var(--info)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+            }}
+            onClick={() => window.location.href = '/report'}
+          >
+            <i className="fas fa-file-alt mr-1"></i> Просмотреть отчет
+          </button>
+        </TooltipWrapper>
         
         <TooltipWrapper text="Настроить вид и поведение карты" position="bottom">
           <button 

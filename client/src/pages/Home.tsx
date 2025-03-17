@@ -4,13 +4,13 @@ import MapView from '@/components/MapView';
 import { usePhotoContext } from '@/context/PhotoContext';
 import NearbyPanel from '@/components/NearbyPanel';
 import DuplicatePanel from '@/components/DuplicatePanel';
-import SafetyCheckPanel from '@/components/SafetyCheckPanel';
+import SafetyCheckPanelNew from '@/components/SafetyCheckPanelNew';
 import PhotoModal from '@/components/modals/PhotoModal';
 import URLModal from '@/components/modals/URLModal';
 import CoordsModal from '@/components/modals/CoordsModal';
 import PhotoPreview from '@/components/PhotoPreview';
 import { Photo, calculateDistance, findDuplicates } from '@/lib/utils';
-import { NearbyObject, checkLocationSafety } from '@/components/SafetyCheckService';
+import { NearbyObject } from '@/components/SafetyCheckService';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -165,10 +165,9 @@ export default function Home() {
         
         {isPanelVisible === 'nearby' && <NearbyPanel onClose={() => setIsPanelVisible(null)} />}
         {isPanelVisible === 'duplicate' && <DuplicatePanel onClose={() => setIsPanelVisible(null)} />}
-        {isPanelVisible === 'safety' && <SafetyCheckPanel 
+        {isPanelVisible === 'safety' && <SafetyCheckPanelNew 
           isOpen={isPanelVisible === 'safety'} 
           onClose={() => setIsPanelVisible(null)} 
-          restrictedObjects={restrictedObjects} 
         />}
       </div>
 
