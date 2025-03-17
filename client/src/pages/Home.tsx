@@ -10,8 +10,7 @@ import URLModal from '@/components/modals/URLModal';
 import CoordsModal from '@/components/modals/CoordsModal';
 import PhotoPreview from '@/components/PhotoPreview';
 import { Photo, calculateDistance, findDuplicates } from '@/lib/utils';
-import { NearbyObject } from '@/components/SafetyCheckService';
-import { checkLocationSafety } from '@/services/overpassService';
+import { NearbyObject, checkLocationSafety } from '@/components/SafetyCheckService';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -81,11 +80,11 @@ export default function Home() {
           showLoading('Проверка безопасности местоположения...', 1);
           
           try {
-            // Получаем список близлежащих запрещенных объектов
-            const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon);
-            setRestrictedObjects(objects);
+            // Получаем список близлежащих запрещенных объектов - новый формат
+            const result = await checkLocationSafety(selectedPhoto);
+            setRestrictedObjects(result.restrictedObjects || []);
             
-            console.log(`Обнаружено объектов вблизи: ${objects.length}`);
+            console.log(`Обнаружено объектов вблизи: ${result.restrictedObjects ? result.restrictedObjects.length : 0}`);
           } catch (error) {
             console.error('Ошибка при проверке безопасности:', error);
           } finally {

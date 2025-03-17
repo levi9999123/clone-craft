@@ -168,6 +168,8 @@ export interface SafetyCheckResult {
 }
 
 // Функция проверки безопасности местоположения с ПРЯМЫМ запросом к API
+// Единственная функция для проверки безопасности
+// Никаких дополнительных импортов и функций не используется
 export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResult> {
   // Проверяем, есть ли координаты у фотографии
   if (!photo.lat || !photo.lon) {
@@ -179,11 +181,10 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
   }
 
   try {
-    // ПРЯМОЙ ЗАПРОС К API - БЕЗ ПРОМЕЖУТОЧНЫХ ФУНКЦИЙ
     // Фиксированный радиус 100м
     const radius = 100;
     
-    // Формируем запрос к Overpass API
+    // Формируем один запрос к Overpass API
     const overpassQuery = `
       [out:json][timeout:25];
       (
@@ -209,9 +210,9 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
       out skel qt;
     `;
     
-    console.log(`Отправка запроса к Overpass API для (${photo.lat}, ${photo.lon})`);
+    console.log(`ЕДИНСТВЕННЫЙ запрос к Overpass API для (${photo.lat}, ${photo.lon})`);
     
-    // Выполняем запрос напрямую, без использования промежуточных функций
+    // Выполняем запрос напрямую - БЕЗ ПРОМЕЖУТОЧНЫХ ФУНКЦИЙ
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       headers: {
@@ -226,12 +227,12 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
 
     const data = await response.json();
     
-    // Обрабатываем результаты, создаем объекты с вычисленными расстояниями
+    // Обрабатываем результаты
     const objects: NearbyObject[] = [];
     
     if (data && data.elements) {
       data.elements.forEach((element: any) => {
-        // Пропускаем элементы без координат или типа
+        // Пропускаем элементы без координат
         if (!element.lat || !element.lon) return;
         
         // Определяем тип объекта
@@ -255,17 +256,17 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
     // Сортируем по расстоянию
     const sortedObjects = objects.sort((a, b) => a.distance - b.distance);
     
-    console.log(`Проверка безопасности: найдено ${sortedObjects.length} объектов поблизости от координат (${photo.lat}, ${photo.lon})`);
+    console.log(`РЕЗУЛЬТАТ ПРОВЕРКИ: найдено ${sortedObjects.length} объектов поблизости от координат (${photo.lat}, ${photo.lon})`);
     
     // Проверяем, есть ли объекты в опасной близости
     const unsafeObjects = sortedObjects.filter(obj => !isSafeDistance(obj.distance));
     
-    // Находим ближайший объект (с минимальным расстоянием)
+    // Находим ближайший объект
     let closestObject = null;
     let distanceToClosest = null;
     
     if (sortedObjects.length > 0) {
-      closestObject = sortedObjects[0]; // Объекты уже отсортированы по расстоянию
+      closestObject = sortedObjects[0]; 
       distanceToClosest = closestObject.distance;
     }
     
