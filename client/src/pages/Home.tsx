@@ -5,27 +5,62 @@ import { usePhotoContext } from '@/context/PhotoContext';
 import NearbyPanel from '@/components/NearbyPanel';
 import DuplicatePanel from '@/components/DuplicatePanel';
 import QuickActionMenu from '@/components/QuickActionMenu';
+import SafetyCheckPanel from '@/components/SafetyCheckPanel';
 import PhotoModal from '@/components/modals/PhotoModal';
 import URLModal from '@/components/modals/URLModal';
 import CoordsModal from '@/components/modals/CoordsModal';
 import { Photo } from '@/lib/utils';
+import { NearbyObject } from '@/components/SafetyCheckService';
+import { checkLocationSafety } from '@/services/overpassService';
 
 export default function Home() {
   const { selectedPhoto } = usePhotoContext();
-  const [isPanelVisible, setIsPanelVisible] = useState<'nearby' | 'duplicate' | null>(null);
+  const [isPanelVisible, setIsPanelVisible] = useState<'nearby' | 'duplicate' | 'safety' | null>(null);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [isCoordsModalOpen, setIsCoordsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0, message: '' });
+  const [restrictedObjects, setRestrictedObjects] = useState<NearbyObject[]>([]);
 
+  // Эффект для отображения панели при выборе фото
   useEffect(() => {
     if (selectedPhoto) {
       setIsPanelVisible('nearby');
     }
   }, [selectedPhoto]);
+  
+  // Эффект для проверки безопасности местоположения
+  useEffect(() => {
+    const checkSafety = async () => {
+      if (selectedPhoto && selectedPhoto.lat && selectedPhoto.lon) {
+        // Показываем индикатор загрузки
+        showLoading('Проверка безопасности местоположения...', 1);
+        
+        try {
+          // Получаем список близлежащих запрещенных объектов
+          const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon, 200);
+          setRestrictedObjects(objects);
+          
+          // Если найдены объекты, автоматически открываем панель проверки
+          if (objects.length > 0) {
+            setIsPanelVisible('safety');
+          }
+        } catch (error) {
+          console.error('Ошибка при проверке безопасности:', error);
+        } finally {
+          hideLoading();
+        }
+      } else {
+        // Если фото не выбрано или у него нет координат, сбрасываем список объектов
+        setRestrictedObjects([]);
+      }
+    };
+    
+    checkSafety();
+  }, [selectedPhoto]);
 
-  const togglePanel = (panelType: 'nearby' | 'duplicate') => {
+  const togglePanel = (panelType: 'nearby' | 'duplicate' | 'safety') => {
     setIsPanelVisible(current => current === panelType ? null : panelType);
   };
 
@@ -64,6 +99,11 @@ export default function Home() {
         
         {isPanelVisible === 'nearby' && <NearbyPanel onClose={() => setIsPanelVisible(null)} />}
         {isPanelVisible === 'duplicate' && <DuplicatePanel onClose={() => setIsPanelVisible(null)} />}
+        {isPanelVisible === 'safety' && <SafetyCheckPanel 
+          isOpen={isPanelVisible === 'safety'} 
+          onClose={() => setIsPanelVisible(null)} 
+          restrictedObjects={restrictedObjects} 
+        />}
       </div>
 
       {isPhotoModalOpen && <PhotoModal onClose={() => setIsPhotoModalOpen(false)} />}

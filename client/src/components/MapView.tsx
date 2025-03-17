@@ -8,7 +8,8 @@ import TooltipWrapper from './TooltipWrapper';
 interface MapViewProps {
   onToggleNearbyPanel: () => void;
   onToggleDuplicatePanel: () => void;
-  isPanelVisible: 'nearby' | 'duplicate' | null;
+  onToggleSafetyPanel?: () => void;
+  isPanelVisible: 'nearby' | 'duplicate' | 'safety' | null;
 }
 
 export default function MapView({ 
