@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
-import { NearbyObject, isSafeDistance, MINIMUM_SAFE_DISTANCE, fetchNearbyObjects } from './SafetyCheckService';
-import { checkLocationSafety } from '@/services/overpassService';
+import { NearbyObject, isSafeDistance, MINIMUM_SAFE_DISTANCE, checkLocationSafety } from './SafetyCheckService';
 import { Photo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -134,9 +133,7 @@ export default function SafetyCheckPanel({
     
     try {
       // Запрос данных о запрещенных объектах поблизости
-      console.log(`Запрос к Overpass API с координатами ${photo.lat}, ${photo.lon} и радиусом 100м`);
-      // Импортируем функцию только один раз для улучшения производительности
-      const { checkLocationSafety } = await import('./SafetyCheckService');
+      console.log(`Запрос к Overpass API для фото ${photo.name}`);
       const result = await checkLocationSafety(photo);
       
       if (result && result.restrictedObjects) {
@@ -260,8 +257,7 @@ export default function SafetyCheckPanel({
       const resultsMap = new Map<number, NearbyObject[]>();
       let completedCount = 0;
       
-      // Получаем функцию проверки один раз вне цикла
-      const { checkLocationSafety } = await import('./SafetyCheckService');
+      // Используем импортированную функцию напрямую - без динамического импорта
       
       // Проверяем каждую фотографию
       for (const photo of photosToCheck) {
