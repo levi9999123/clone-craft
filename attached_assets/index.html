@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G.P.S ANALYZE</title>
+    <meta name="description" content="Анализируйте и визуализируйте фотографии с координатами на интерактивной карте. Загружайте файлы или папки, находите дубликаты и исследуйте геоданные с точностью. Попробуйте сейчас!">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <style>
+        :root {
+            --primary: #007bff;
+            --accent: #ff9500;
+            --success: #28a745;
+            --error: #dc3545;
+            --bg: #f8f9fa;
+            --sidebar-bg: #ffffff;
+            --photo-bg: #ffffff;
+            --modal-bg: #ffffff;
+            --text: #212529;
+            --border: #dee2e6;
+            --highlight: #e9f5ff;
+        }
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            position: relative;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+            flex-direction: row;
+        }
+        .sidebar {
+            width: 300px;
+            padding: 20px;
+            background: var(--sidebar-bg);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .sidebar-header h1 { 
+            margin: 0; 
+            font-size: 22px; 
+            font-weight: 700; 
+            color: var(--primary); 
+        }
+        .drop-zone {
+            border: 2px dashed var(--primary);
+            background: var(--highlight);
+            color: var(--primary);
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.dragover { 
+            background: #fff3e6; 
+            border-color: var(--accent); 
+            color: var(--accent); 
+        }
+        .photo-list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .photo-list { 
+            margin: 0; 
+        }
+        .photo-item, .close-item, .duplicate-item {
+            display: grid;
+            grid-template-columns: 60px 1fr 40px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: var(--photo-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .photo-item:hover, .close-item:hover, .duplicate-item:hover { 
+            background: var(--highlight); 
+            border-color: var(--primary); 
+            box-shadow: 0 2px 10px rgba(0, 123, 255, 0.1);
+        }
+        .photo-item img, .close-item img, .duplicate-item img { 
+            width: 60px; 
+            height: 60px; 
+            object-fit: cover; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            transition: transform 0.3s ease; 
+        }
+        .photo-item img:hover, .close-item img:hover, .duplicate-item img:hover { 
+            transform: scale(1.05); 
+        }
+        .photo-details { 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        .photo-name { 
+            font-weight: 600; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            max-width: 100%; 
+            font-size: 14px; 
+        }
+        .photo-coords { 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            max-width: 100%; 
+            font-size: 13px; 
+            color: #6c757d; 
+        }
+        .photo-actions { 
+            display: flex; 
+            gap: 5px; 
+            flex-wrap: wrap; 
+        }
+        .photo-item button, .close-item button, .duplicate-item button { 
+            background: var(--error); 
+            color: white; 
+            border: none; 
+            padding: 5px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+        }
+        .photo-item button:hover, .close-item button:hover, .duplicate-item button:hover { 
+            background: #c82333; 
+            box-shadow: 0 2px 5px rgba(220, 53, 69, 0.3); 
+        }
+        .map-container { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: row; 
+        }
+        #map { 
+            flex-grow: 1; 
+            height: 100%; 
+            position: relative; 
+            z-index: 100; 
+        }
+        .close-container, .duplicate-container {
+            width: 300px;
+            padding: 20px;
+            background: var(--sidebar-bg);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+        }
+        .close-container h3, .duplicate-container h3 {
+            margin: 0 0 10px;
+            font-size: 18px;
+            color: var(--primary);
+        }
+        .close-list, .duplicate-list { 
+            margin-top: 10px; 
+        }
+        .map-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+        }
+        .map-btn:hover { 
+            background: #0069d9; 
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3); 
+        }
+        .map-legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+        .clear-btn, #save-coordinates, #load-urls-btn, #calc-distance-btn, #load-folder-btn { 
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            padding: 10px 15px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin-top: 10px; 
+            width: 100%; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 2px 5px rgba(255, 149, 0, 0.2);
+        }
+        .clear-btn:hover, #save-coordinates:hover, #load-urls-btn:hover, #calc-distance-btn:hover, #load-folder-btn:hover { 
+            background: #e68a00; 
+            box-shadow: 0 4px 10px rgba(255, 149, 0, 0.3); 
+        }
+        .modal, .url-modal, .coords-modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0, 0, 0, 0.5); 
+            z-index: 2000;
+            overflow-y: auto;
+        }
+        .modal-content, .url-modal-content, .coords-modal-content { 
+            background: var(--modal-bg); 
+            margin: 5% auto; 
+            padding: 20px; 
+            width: 90%; 
+            max-width: 600px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
+            border: 1px solid var(--border);
+            position: relative; 
+            z-index: 2100; 
+            transition: opacity 0.3s ease;
+        }
+        .modal-content img { 
+            max-width: 100%; 
+            height: auto; 
+            border-radius: 5px; 
+            display: block; 
+            margin: 0 auto; 
+            max-height: 50vh; 
+            object-fit: contain; 
+            border: 1px solid var(--border);
+        }
+        .modal-content input, .url-modal-content textarea, .coords-modal-content textarea { 
+            width: 100%; 
+            padding: 8px; 
+            margin: 5px 0; 
+            border: 1px solid var(--border); 
+            border-radius: 5px; 
+            box-sizing: border-box; 
+            background: #fff; 
+            color: var(--text); 
+            transition: border-color 0.3s ease;
+        }
+        .modal-content input:focus, .url-modal-content textarea:focus, .coords-modal-content textarea:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+        .url-modal-content textarea, .coords-modal-content textarea { 
+            height: 200px; 
+            resize: vertical; 
+        }
+        .close-btn { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            font-size: 24px; 
+            cursor: pointer; 
+            color: var(--text); 
+            transition: color 0.3s ease; 
+        }
+        .close-btn:hover { 
+            color: var(--primary); 
+        }
+        .loading { 
+            display: none; 
+            position: fixed; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            background: white; 
+            color: var(--text); 
+            padding: 15px 20px; 
+            border-radius: 8px; 
+            z-index: 2200; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            width: 0;
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s ease;
+        }
+        .distance-input { 
+            margin-top: 15px; 
+            display: flex; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+        }
+        .distance-input label { 
+            margin-right: 10px; 
+            font-weight: 700; 
+            color: var(--text); 
+        }
+        .distance-input select { 
+            padding: 6px; 
+            border: 1px solid var(--border); 
+            border-radius: 5px; 
+            background: #fff; 
+            color: var(--text); 
+            transition: border-color 0.3s ease; 
+        }
+        .distance-input select:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+        .pagination { 
+            margin-top: 15px; 
+            text-align: center; 
+        }
+        .pagination button { 
+            margin: 0 5px; 
+            padding: 8px 12px; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2); 
+        }
+        .pagination button:hover { 
+            background: #0069d9; 
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3); 
+        }
+        .pagination button:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+            box-shadow: none; 
+        }
+        .toast { 
+            position: fixed; 
+            bottom: 20px; 
+            right: 20px; 
+            background: var(--success); 
+            color: white; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            display: none; 
+            z-index: 2200; 
+            transition: opacity 0.3s ease; 
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); 
+        }
+        .toast.error { 
+            background: var(--error); 
+        }
+        .copy-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+        }
+        .copy-btn:hover { 
+            background: #0069d9; 
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3); 
+        }
+        .preview-container {
+            position: absolute;
+            top: 0;
+            left: 100%;
+            margin-left: 10px;
+            z-index: 1000;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .preview-container.show { 
+            display: block; 
+            opacity: 1; 
+        }
+        .preview-img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 5px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .filter-checkbox {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .filter-checkbox label { 
+            font-weight: 700; 
+            color: var(--text); 
+        }
+        #stats-slider {
+            position: absolute;
+            top: 10px;
+            right: 60px;
+            width: 250px;
+            padding: 10px;
+            background: var(--highlight);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 123, 255, 0.1);
+            z-index: 1500;
+            transition: transform 0.3s ease;
+            transform: translateY(0);
+        }
+        #stats-slider.closed {
+            transform: translateY(-100%);
+        }
+        #stats-slider .toggle-btn {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 0 0 5px 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+        #stats-slider .toggle-btn:hover {
+            background: #0069d9;
+        }
+        #stats-slider p {
+            margin: 5px 0;
+            font-size: 12px;
+            color: var(--text);
+        }
+        .duplicate-group h4 {
+            margin: 10px 0 5px;
+            color: var(--primary);
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .leaflet-attribution-flag {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-map-marker-alt"></i> G.P.S ANALYZE</h1>
+            </div>
+            <div class="drop-zone" id="drop-zone">
+                <p><i class="fas fa-upload"></i> Перетаскивай фото или кликни для загрузки</p>
+                <input type="file" id="photo-input" accept="image/*" multiple hidden>
+            </div>
+            <input type="file" id="folder-input" webkitdirectory directory hidden>
+            <button id="load-folder-btn" class="clear-btn"><i class="fas fa-folder-open"></i> Загрузить папку с фотографиями</button>
+            <button id="load-urls" class="clear-btn"><i class="fas fa-link"></i> Загрузить по ссылке</button>
+            <button id="calc-distance-coords" class="clear-btn"><i class="fas fa-ruler"></i> Рассчитать расстояние</button>
+            <button id="clear-all" class="clear-btn"><i class="fas fa-trash"></i> Очистить всё</button>
+            <div class="distance-input">
+                <label for="distance-filter">Близкое расстояние:</label>
+                <select id="distance-filter">
+                    <option value="10">10 м</option>
+                    <option value="25" selected>25 м</option>
+                    <option value="50">50 м</option>
+                    <option value="100">100 м</option>
+                </select>
+            </div>
+            <div class="filter-checkbox">
+                <input type="checkbox" id="unique-only" checked>
+                <label for="unique-only">Показывать только уникальные</label>
+            </div>
+            <div class="photo-list-container">
+                <div id="photo-list" class="photo-list"></div>
+            </div>
+            <div class="pagination">
+                <button id="prev-page" disabled>Назад</button>
+                <span id="page-info">Страница 1 из 1</span>
+                <button id="next-page" disabled>Вперёд</button>
+            </div>
+        </div>
+        <div class="map-container">
+            <div id="map">
+                <button id="center-map" class="map-btn" title="Центрировать карту"><i class="fas fa-crosshairs"></i></button>
+                <div class="map-legend">
+                    <span><i class="fas fa-minus" style="color: var(--success);"></i> >25 м</span>
+                    <span><i class="fas fa-minus" style="color: var(--error);"></i> <25 м</span>
+                </div>
+                <div id="stats-slider">
+                    <button class="toggle-btn" id="stats-toggle"><i class="fas fa-arrow-up"></i> Статистика</button>
+                    <p>Всего: <span id="total-count">0</span></p>
+                    <p>Уникальных: <span id="unique-count">0</span></p>
+                    <p>Дубликатов: <span id="duplicate-count">0</span></p>
+                    <p>Среднее расстояние: <span id="avg-distance">0 м</span></p>
+                </div>
+            </div>
+            <div class="close-container">
+                <h3>Близкие фото (<25 м)</h3>
+                <div id="close-list" class="close-list"></div>
+            </div>
+            <div class="duplicate-container">
+                <h3>Дубликаты</h3>
+                <div id="duplicate-list" class="duplicate-list"></div>
+            </div>
+        </div>
+    </div>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <img id="modal-img" src="" alt="Фото">
+            <p id="modal-info"></p>
+            <div>
+                <label for="manual-lat">Широта:</label>
+                <input type="number" id="manual-lat" step="any" placeholder="Широта (-90 до 90)">
+                <label for="manual-lon">Долгота:</label>
+                <input type="number" id="manual-lon" step="any" placeholder="Долгота (-180 до 180)">
+                <button id="save-coordinates">Сохранить координаты</button>
+            </div>
+        </div>
+    </div>
+    <div id="url-modal" class="url-modal">
+        <div class="url-modal-content">
+            <span class="close-btn">×</span>
+            <h3>Загрузка фото по ссылке</h3>
+            <textarea id="url-input" placeholder="Вставьте ссылки на фото (по одной на строку или через запятую)"></textarea>
+            <button id="load-urls-btn">Загрузить</button>
+        </div>
+    </div>
+    <div id="coords-modal" class="coords-modal">
+        <div class="coords-modal-content">
+            <span class="close-btn">×</span>
+            <h3>Рассчитать расстояние по координатам</h3>
+            <textarea id="coords-input" placeholder="Введите координаты (широта, долгота) по одной паре на строку, например: 55.7558, 37.6173"></textarea>
+            <button id="calc-distance-btn">Рассчитать</button>
+        </div>
+    </div>
+    <div id="loading" class="loading">
+        <p>Загрузка... <span id="loading-stage"></span></p>
+        <div class="progress-container">
+            <div class="progress-bar" id="loading-progress"></div>
+        </div>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = {
+                map: document.getElementById('map'),
+                photoList: document.getElementById('photo-list'),
+                closeList: document.getElementById('close-list'),
+                duplicateList: document.getElementById('duplicate-list'),
+                dropZone: document.getElementById('drop-zone'),
+                photoInput: document.getElementById('photo-input'),
+                folderInput: document.getElementById('folder-input'),
+                loadFolderBtn: document.getElementById('load-folder-btn'),
+                clearBtn: document.getElementById('clear-all'),
+                modal: document.getElementById('modal'),
+                modalContent: document.querySelector('.modal-content'),
+                modalImg: document.getElementById('modal-img'),
+                modalInfo: document.getElementById('modal-info'),
+                closeModal: document.querySelector('.modal .close-btn'),
+                loading: document.getElementById('loading'),
+                loadingStage: document.getElementById('loading-stage'),
+                loadingProgress: document.getElementById('loading-progress'),
+                manualLat: document.getElementById('manual-lat'),
+                manualLon: document.getElementById('manual-lon'),
+                saveCoordinates: document.getElementById('save-coordinates'),
+                prevPage: document.getElementById('prev-page'),
+                nextPage: document.getElementById('next-page'),
+                pageInfo: document.getElementById('page-info'),
+                centerMap: document.getElementById('center-map'),
+                loadUrls: document.getElementById('load-urls'),
+                urlModal: document.getElementById('url-modal'),
+                urlInput: document.getElementById('url-input'),
+                loadUrlsBtn: document.getElementById('load-urls-btn'),
+                closeUrlModal: document.querySelector('.url-modal .close-btn'),
+                calcDistanceCoords: document.getElementById('calc-distance-coords'),
+                coordsModal: document.getElementById('coords-modal'),
+                coordsInput: document.getElementById('coords-input'),
+                calcDistanceBtn: document.getElementById('calc-distance-btn'),
+                closeCoordsModal: document.querySelector('.coords-modal .close-btn'),
+                uniqueOnly: document.getElementById('unique-only'),
+                distanceFilter: document.getElementById('distance-filter'),
+                totalCount: document.getElementById('total-count'),
+                uniqueCount: document.getElementById('unique-count'),
+                duplicateCount: document.getElementById('duplicate-count'),
+                avgDistance: document.getElementById('avg-distance'),
+                statsSlider: document.getElementById('stats-slider'),
+                statsToggle: document.getElementById('stats-toggle')
+            };
+
+            const map = L.map(elements.map).setView([55.7558, 37.6173], 13);
+            L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+                attribution: 'Данные карты © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, Изображения © <a href="https://www.mapbox.com/">Mapbox</a>',
+                maxZoom: 18,
+                id: 'mapbox/streets-v11',
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: 'pk.eyJ1IjoibWNjbGVpbjEzNyIsImEiOiJjbTdqY20wNW8wNXByMmpzZDk1czJld2NmIn0.ws3PeYV_FOFqtOzIKxHINQ'
+            }).addTo(map);
+            const markers = L.markerClusterGroup();
+            map.addLayer(markers);
+
+            const stopIcon = L.divIcon({
+                html: '<i class="fas fa-ban" style="color: red; font-size: 20px;"></i>',
+                iconSize: [25, 25],
+                className: 'custom-icon'
+            });
+            const checkIcon = L.divIcon({
+                html: '<i class="fas fa-check" style="color: green; font-size: 20px;"></i>',
+                iconSize: [25, 25],
+                className: 'custom-icon'
+            });
+            const highlightIcon = L.divIcon({
+                html: '<i class="fas fa-map-pin" style="color: #007bff; font-size: 24px;"></i>',
+                iconSize: [30, 30],
+                className: 'custom-icon'
+            });
+
+            let photos = [];
+            let duplicates = [];
+            let currentPhotoIndex = null;
+            const mapElements = { markers: {}, lines: [] };
+            const itemsPerPage = 5;
+            let currentPage = 1;
+            let coordsLayer = null;
+            const backendUrl = 'https://ff35-38-180-203-87.ngrok-free.app';
+
+            // Переключение слайдера статистики
+            elements.statsToggle.onclick = () => {
+                elements.statsSlider.classList.toggle('closed');
+                elements.statsToggle.innerHTML = elements.statsSlider.classList.contains('closed') 
+                    ? '<i class="fas fa-arrow-down"></i> Статистика' 
+                    : '<i class="fas fa-arrow-up"></i> Статистика';
+            };
+
+            function haversine(lat1, lon1, lat2, lon2) {
+                const R = 6371;
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c * 1000;
+            }
+
+            function convertDMSToDD(dms, ref) {
+                const degrees = dms[0];
+                const minutes = dms[1];
+                const seconds = dms[2];
+                let dd = degrees + minutes / 60 + seconds / 3600;
+                if (ref === 'S' || ref === 'W') dd = -dd;
+                return dd;
+            }
+
+            function isDuplicatePhoto(newPhoto, existingPhotos) {
+                return existingPhotos.some(p => 
+                    p.lat === newPhoto.lat && p.lon === newPhoto.lon
+                );
+            }
+
+            async function processFiles(files) {
+                elements.loading.style.display = 'block';
+                elements.loadingStage.textContent = 'Обработка...';
+                elements.loadingProgress.style.width = '0%';
+                const totalFiles = files.length;
+                const batchSize = Math.min(totalFiles, 10);
+                const batches = [];
+
+                for (let i = 0; i < totalFiles; i += batchSize) {
+                    batches.push(Array.from(files).slice(i, i + batchSize));
+                }
+
+                let duplicatesFound = 0;
+                let processedFiles = 0;
+
+                for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+                    const batch = batches[batchIndex];
+                    const formData = new FormData();
+                    batch.forEach(file => formData.append('files', file));
+
+                    const response = await fetch(`${backendUrl}/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        console.warn('Ошибка загрузки:', response.status);
+                        showToast('Ошибка загрузки', true);
+                        continue;
+                    }
+
+                    const results = await response.json();
+                    const batchPhotos = [];
+
+                    for (const [index, file] of batch.entries()) {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(file);
+                        const src = await new Promise(resolve => reader.onload = () => resolve(reader.result));
+
+                        let lat = null, lon = null;
+
+                        await new Promise(resolve => EXIF.getData(file, () => {
+                            const exif = EXIF.getAllTags(file);
+                            if (exif.GPSLatitude && exif.GPSLongitude) {
+                                lat = convertDMSToDD(exif.GPSLatitude, exif.GPSLatitudeRef);
+                                lon = convertDMSToDD(exif.GPSLongitude, exif.GPSLongitudeRef);
+                            }
+                            resolve();
+                        }));
+
+                        if (!lat || !lon) {
+                            const serverResult = results.find(r => r.name === file.name);
+                            if (serverResult) {
+                                lat = serverResult.lat;
+                                lon = serverResult.lon;
+                            }
+                        }
+
+                        if (lat && lon && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                            batchPhotos.push({ 
+                                src, 
+                                lat, 
+                                lon, 
+                                name: file.name 
+                            });
+                        }
+                        processedFiles++;
+                        elements.loadingProgress.style.width = `${(processedFiles / totalFiles) * 100}%`;
+                    }
+
+                    for (const photo of batchPhotos) {
+                        const allPhotos = photos.concat(duplicates);
+                        if (isDuplicatePhoto(photo, allPhotos)) {
+                            const duplicateOf = allPhotos.find(p => p.lat === photo.lat && p.lon === photo.lon).name;
+                            duplicates.push({ ...photo, duplicateOf });
+                            duplicatesFound++;
+                            showToast(`Дубликат: ${photo.name} совпадает с ${duplicateOf}`);
+                        } else {
+                            photos.push(photo);
+                        }
+                    }
+
+                    await updateMapAndList();
+                }
+
+                elements.loading.style.display = 'none';
+                showToast(`Загружено ${totalFiles - duplicatesFound} новых файлов, найдено ${duplicatesFound} дубликатов`);
+            }
+
+            async function processUrl(url) {
+                elements.loading.style.display = 'block';
+                elements.loadingStage.textContent = 'Обработка URL...';
+                elements.loadingProgress.style.width = '0%';
+
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Ошибка загрузки URL: ${response.status}`);
+                    const blob = await response.blob();
+                    const file = new File([blob], 'photo.jpg', { type: blob.type });
+                    const src = url;
+
+                    elements.loadingProgress.style.width = '33%';
+
+                    let lat = null, lon = null;
+
+                    await new Promise(resolve => EXIF.getData(file, () => {
+                        const exif = EXIF.getAllTags(file);
+                        if (exif.GPSLatitude && exif.GPSLongitude) {
+                            lat = convertDMSToDD(exif.GPSLatitude, exif.GPSLatitudeRef);
+                            lon = convertDMSToDD(exif.GPSLongitude, exif.GPSLongitudeRef);
+                        }
+                        resolve();
+                    }));
+
+                    elements.loadingProgress.style.width = '66%';
+
+                    if (!lat || !lon) {
+                        const serverResponse = await fetch(`${backendUrl}/upload-url`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url })
+                        });
+                        const result = await serverResponse.json();
+
+                        if (serverResponse.ok) {
+                            lat = result.lat;
+                            lon = result.lon;
+                        }
+                    }
+
+                    if (lat && lon && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                        const photo = { 
+                            src, 
+                            lat, 
+                            lon, 
+                            name: url 
+                        };
+                        const allPhotos = photos.concat(duplicates);
+                        if (isDuplicatePhoto(photo, allPhotos)) {
+                            const duplicateOf = allPhotos.find(p => p.lat === photo.lat && p.lon === photo.lon).name;
+                            duplicates.push({ ...photo, duplicateOf });
+                            showToast(`Дубликат: ${url} совпадает с ${duplicateOf}`);
+                            updateDuplicateList();
+                            elements.loadingProgress.style.width = '100%';
+                            setTimeout(() => elements.loading.style.display = 'none', 500);
+                            return null;
+                        }
+                        elements.loadingProgress.style.width = '100%';
+                        setTimeout(() => elements.loading.style.display = 'none', 500);
+                        return photo;
+                    }
+                    elements.loading.style.display = 'none';
+                    return null;
+                } catch (error) {
+                    elements.loading.style.display = 'none';
+                    showToast(`Ошибка загрузки URL`, true);
+                    return null;
+                }
+            }
+
+            async function processMultipleUrls(urls) {
+                elements.loading.style.display = 'block';
+                elements.loadingStage.textContent = 'Обработка URL...';
+                elements.loadingProgress.style.width = '0%';
+                const totalUrls = urls.length;
+
+                const urlPromises = urls.map(async (url, index) => {
+                    const result = await processUrl(url);
+                    elements.loadingProgress.style.width = `${((index + 1) / totalUrls) * 100}%`;
+                    return result;
+                });
+
+                const results = await Promise.all(urlPromises);
+                const newPhotos = results.filter(result => result !== null);
+                photos.push(...newPhotos);
+                await updateMapAndList();
+                elements.loading.style.display = 'none';
+                showToast(`Загружено ${newPhotos.length} новых фото`);
+            }
+
+            function splitPhotosByDistance(photos, threshold) {
+                const closePhotos = [];
+                const distantPhotos = [];
+                const usedForClose = new Set();
+
+                for (let i = 0; i < photos.length; i++) {
+                    if (!photos[i].lat || !photos[i].lon) continue;
+
+                    let isClose = false;
+                    for (let j = 0; j < photos.length; j++) {
+                        if (i === j || !photos[j].lat || !photos[j].lon) continue;
+
+                        const dist = haversine(photos[i].lat, photos[i].lon, photos[j].lat, photos[j].lon);
+                        if (dist < threshold && dist > 0) {
+                            isClose = true;
+                            break;
+                        }
+                    }
+
+                    if (isClose) {
+                        closePhotos.push(photos[i]);
+                        usedForClose.add(i);
+                    }
+                }
+
+                photos.forEach((photo, idx) => {
+                    if (!usedForClose.has(idx) && photo.lat && photo.lon) {
+                        distantPhotos.push(photo);
+                    }
+                });
+
+                return { closePhotos, distantPhotos };
+            }
+
+            function nearestNeighborSort(points) {
+                if (points.length <= 1) return points;
+                const sorted = [points[0]];
+                const remaining = points.slice(1);
+
+                while (remaining.length > 0) {
+                    const last = sorted[sorted.length - 1];
+                    let minDist = Infinity;
+                    let nearestIdx = -1;
+
+                    remaining.forEach((point, idx) => {
+                        const dist = haversine(last.lat, last.lon, point.lat, point.lon);
+                        if (dist < minDist && dist > 0) {
+                            minDist = dist;
+                            nearestIdx = idx;
+                        }
+                    });
+
+                    if (nearestIdx === -1) break;
+                    sorted.push(remaining.splice(nearestIdx, 1)[0]);
+                }
+
+                return sorted;
+            }
+
+            function copyToClipboard(text, toastMessage) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showToast(toastMessage))
+                    .catch(err => showToast('Ошибка копирования', true));
+            }
+
+            function showToast(message, isError = false) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.className = `toast ${isError ? 'error' : ''}`;
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.opacity = '1', 10);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.style.display = 'none', 300);
+                }, 3000);
+            }
+
+            function updateStats() {
+                const total = photos.length + duplicates.length;
+                elements.totalCount.textContent = total;
+                elements.uniqueCount.textContent = photos.length;
+                elements.duplicateCount.textContent = duplicates.length;
+
+                if (photos.length > 1) {
+                    let totalDist = 0;
+                    const sorted = nearestNeighborSort([...photos]);
+                    for (let i = 1; i < sorted.length; i++) {
+                        totalDist += haversine(sorted[i-1].lat, sorted[i-1].lon, sorted[i].lat, sorted[i].lon);
+                    }
+                    const avgDist = totalDist / (sorted.length - 1);
+                    elements.avgDistance.textContent = `${avgDist.toFixed(2)} м`;
+                } else {
+                    elements.avgDistance.textContent = 'Н/Д';
+                }
+            }
+
+            async function updateMapAndList() {
+                const distanceThreshold = parseFloat(elements.distanceFilter.value) || 25;
+                const uniqueOnly = elements.uniqueOnly.checked;
+                const validPhotos = photos.filter(p => p.lat && p.lon);
+                const displayPhotos = uniqueOnly ? validPhotos.filter(p => !duplicates.some(d => d.lat === p.lat && d.lon === p.lon)) : validPhotos;
+                const { closePhotos, distantPhotos } = splitPhotosByDistance(displayPhotos, distanceThreshold);
+                const sortedDistantPhotos = nearestNeighborSort([...distantPhotos]);
+
+                elements.photoList.innerHTML = '';
+                elements.closeList.innerHTML = '';
+                mapElements.lines.forEach(line => map.removeLayer(line));
+                mapElements.lines = [];
+                markers.clearLayers();
+
+                sortedDistantPhotos.forEach((photo, index) => {
+                    const isClose = closePhotos.some(cp => cp.lat === photo.lat && cp.lon === photo.lon);
+                    mapElements.markers[photo.name] = L.marker([photo.lat, photo.lon], {
+                        icon: isClose ? stopIcon : checkIcon
+                    }).bindPopup(`
+                        <strong>${photo.name}</strong><br>
+                        Координаты: ${photo.lat.toFixed(4)}, ${photo.lon.toFixed(4)}
+                    `);
+                    markers.addLayer(mapElements.markers[photo.name]);
+
+                    if (index > 0) {
+                        const prevPhoto = sortedDistantPhotos[index - 1];
+                        const dist = haversine(prevPhoto.lat, prevPhoto.lon, photo.lat, photo.lon);
+                        if (dist > 0) {
+                            const midPoint = [(prevPhoto.lat + photo.lat) / 2, (prevPhoto.lon + photo.lon) / 2];
+                            const line = L.polyline([[prevPhoto.lat, prevPhoto.lon], [photo.lat, photo.lon]], {
+                                color: dist <= distanceThreshold ? 'var(--success)' : 'var(--error)',
+                                weight: 3
+                            });
+                            mapElements.lines.push(line);
+                            map.addLayer(line);
+
+                            L.marker(midPoint, {
+                                icon: L.divIcon({
+                                    className: 'distance-label',
+                                    html: `<span style="background: white; padding: 2px 5px; border-radius: 3px; font-size: 12px; color: #333;">${dist.toFixed(2)} м</span>`,
+                                    iconSize: [100, 20]
+                                })
+                            }).addTo(map);
+                        }
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = 'photo-item';
+                    const prevDist = index > 0 ? haversine(photo.lat, photo.lon, sortedDistantPhotos[index - 1].lat, sortedDistantPhotos[index - 1].lon).toFixed(2) : '—';
+                    const nextDist = index < sortedDistantPhotos.length - 1 ? haversine(photo.lat, photo.lon, sortedDistantPhotos[index + 1].lat, sortedDistantPhotos[index + 1].lon).toFixed(2) : '—';
+                    div.innerHTML = `
+                        <img src="${photo.src}" alt="Фото на ${photo.lat}, ${photo.lon}">
+                        <div class="photo-details">
+                            <span class="photo-name" title="${photo.name}">${photo.name}</span>
+                            <span class="photo-coords">Координаты: ${photo.lat.toFixed(4)}, ${photo.lon.toFixed(4)}</span>
+                            <div class="photo-actions">
+                                <button class="copy-btn" data-coords="${photo.lat},${photo.lon}"><i class="fas fa-copy"></i> Коорд.</button>
+                                <button class="copy-btn" data-src="${photo.src}"><i class="fas fa-link"></i> Ссылка</button>
+                            </div>
+                            <span>До пред.: ${prevDist} м | До след.: ${nextDist} м</span>
+                        </div>
+                        <button><i class="fas fa-trash"></i></button>`;
+                    const img = div.querySelector('img');
+                    const preview = document.createElement('div');
+                    preview.className = 'preview-container';
+                    preview.innerHTML = `<img src="${photo.src}" class="preview-img" alt="Предпросмотр ${photo.name}">`;
+                    div.querySelector('.photo-details').appendChild(preview);
+
+                    img.onmouseover = () => {
+                        preview.classList.add('show');
+                        mapElements.markers[photo.name].setIcon(highlightIcon);
+                        mapElements.markers[photo.name].openPopup();
+                    };
+                    img.onmouseout = () => {
+                        preview.classList.remove('show');
+                        mapElements.markers[photo.name].setIcon(isClose ? stopIcon : checkIcon);
+                        mapElements.markers[photo.name].closePopup();
+                    };
+                    img.onclick = () => openModal(photos.findIndex(p => p.src === photo.src));
+                    div.querySelector('button i.fa-trash').parentElement.onclick = () => {
+                        const originalIndex = photos.findIndex(p => p.src === photo.src);
+                        delete mapElements.markers[photo.name];
+                        photos.splice(originalIndex, 1);
+                        updateMapAndList();
+                    };
+                    div.querySelectorAll('.copy-btn').forEach(btn => {
+                        btn.onclick = (e) => {
+                            e.stopPropagation();
+                            const coords = btn.getAttribute('data-coords');
+                            const src = btn.getAttribute('data-src');
+                            if (coords) copyToClipboard(coords, 'Координаты скопированы!');
+                            if (src) copyToClipboard(src, 'Ссылка скопирована!');
+                        };
+                    });
+                    div.onmouseover = () => mapElements.markers[photo.name].setIcon(highlightIcon);
+                    div.onmouseout = () => mapElements.markers[photo.name].setIcon(isClose ? stopIcon : checkIcon);
+                    elements.photoList.appendChild(div);
+                });
+
+                closePhotos.forEach((photo, index) => {
+                    mapElements.markers[photo.name] = L.marker([photo.lat, photo.lon], {
+                        icon: stopIcon
+                    }).bindPopup(`
+                        <strong>${photo.name}</strong><br>
+                        Координаты: ${photo.lat.toFixed(4)}, ${photo.lon.toFixed(4)}
+                    `);
+                    markers.addLayer(mapElements.markers[photo.name]);
+
+                    const div = document.createElement('div');
+                    div.className = 'close-item';
+                    div.innerHTML = `
+                        <img src="${photo.src}" alt="Фото на ${photo.lat}, ${photo.lon}">
+                        <div class="photo-details">
+                            <span class="photo-name" title="${photo.name}">${photo.name}</span>
+                            <span class="photo-coords">Координаты: ${photo.lat.toFixed(4)}, ${photo.lon.toFixed(4)}</span>
+                            <div class="photo-actions">
+                                <button class="copy-btn" data-coords="${photo.lat},${photo.lon}"><i class="fas fa-copy"></i> Коорд.</button>
+                                <button class="copy-btn" data-src="${photo.src}"><i class="fas fa-link"></i> Ссылка</button>
+                            </div>
+                        </div>
+                        <button><i class="fas fa-trash"></i></button>`;
+                    const img = div.querySelector('img');
+                    const preview = document.createElement('div');
+                    preview.className = 'preview-container';
+                    preview.innerHTML = `<img src="${photo.src}" class="preview-img" alt="Предпросмотр ${photo.name}">`;
+                    div.querySelector('.photo-details').appendChild(preview);
+
+                    img.onmouseover = () => {
+                        preview.classList.add('show');
+                        mapElements.markers[photo.name].setIcon(highlightIcon);
+                        mapElements.markers[photo.name].openPopup();
+                    };
+                    img.onmouseout = () => {
+                        preview.classList.remove('show');
+                        mapElements.markers[photo.name].setIcon(stopIcon);
+                        mapElements.markers[photo.name].closePopup();
+                    };
+                    img.onclick = () => openModal(photos.findIndex(p => p.src === photo.src));
+                    div.querySelector('button i.fa-trash').parentElement.onclick = () => {
+                        const originalIndex = photos.findIndex(p => p.src === photo.src);
+                        delete mapElements.markers[photo.name];
+                        photos.splice(originalIndex, 1);
+                        updateMapAndList();
+                    };
+                    div.querySelectorAll('.copy-btn').forEach(btn => {
+                        btn.onclick = (e) => {
+                            e.stopPropagation();
+                            const coords = btn.getAttribute('data-coords');
+                            const src = btn.getAttribute('data-src');
+                            if (coords) copyToClipboard(coords, 'Координаты скопированы!');
+                            if (src) copyToClipboard(src, 'Ссылка скопирована!');
+                        };
+                    });
+                    div.onmouseover = () => mapElements.markers[photo.name].setIcon(highlightIcon);
+                    div.onmouseout = () => mapElements.markers[photo.name].setIcon(stopIcon);
+                    elements.closeList.appendChild(div);
+                });
+
+                elements.pageInfo.textContent = `Страница ${currentPage} из ${Math.ceil(sortedDistantPhotos.length / itemsPerPage) || 1}`;
+                elements.prevPage.disabled = currentPage === 1;
+                elements.nextPage.disabled = currentPage === Math.ceil(sortedDistantPhotos.length / itemsPerPage);
+                if (sortedDistantPhotos.length > 0 || closePhotos.length > 0) map.fitBounds(markers.getBounds());
+
+                updateDuplicateList();
+                updateStats();
+            }
+
+            function openModal(index, photoArray = photos) {
+                currentPhotoIndex = index;
+                elements.modalImg.src = photoArray[index].src;
+                elements.modalImg.alt = `Фото на ${photoArray[index].lat}, ${photoArray[index].lon}`;
+                elements.modalInfo.innerHTML = `
+                    Координаты: ${photoArray[index].lat.toFixed(4)}, ${photoArray[index].lon.toFixed(4)}
+                    ${photoArray[index].duplicateOf ? `<br>Дубликат: ${photoArray[index].duplicateOf}` : ''}
+                    <button class="copy-btn" data-coords="${photoArray[index].lat},${photoArray[index].lon}"><i class="fas fa-copy"></i> Скопировать координаты</button>
+                    <button class="copy-btn" data-src="${photoArray[index].src}"><i class="fas fa-link"></i> Скопировать ссылку</button>
+                `;
+                elements.manualLat.value = photoArray[index].lat;
+                elements.manualLon.value = photoArray[index].lon;
+                elements.modal.style.display = 'block';
+                setTimeout(() => elements.modalContent.style.opacity = '1', 10);
+
+                elements.modalInfo.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        const coords = btn.getAttribute('data-coords');
+                        const src = btn.getAttribute('data-src');
+                        if (coords) copyToClipboard(coords, 'Координаты скопированы!');
+                        if (src) copyToClipboard(src, 'Ссылка скопирована!');
+                    };
+                });
+            }
+
+            function updateDuplicateList() {
+                elements.duplicateList.innerHTML = '';
+                const grouped = duplicates.reduce((acc, d) => {
+                    acc[d.duplicateOf] = acc[d.duplicateOf] || [];
+                    acc[d.duplicateOf].push(d);
+                    return acc;
+                }, {});
+                for (const [original, dups] of Object.entries(grouped)) {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = 'duplicate-group';
+                    groupDiv.innerHTML = `<h4>Оригинал: ${original}</h4>`;
+                    dups.forEach((duplicate, index) => {
+                        const div = document.createElement('div');
+                        div.className = 'duplicate-item';
+                        div.innerHTML = `
+                            <img src="${duplicate.src}" alt="Дубликат ${duplicate.duplicateOf}">
+                            <div class="photo-details">
+                                <span class="photo-name" title="${duplicate.name}">${duplicate.name}</span>
+                                <span class="photo-coords">Координаты: ${duplicate.lat.toFixed(4)}, ${duplicate.lon.toFixed(4)}</span>
+                            </div>
+                            <button><i class="fas fa-trash"></i></button>`;
+                        const img = div.querySelector('img');
+                        img.onclick = () => openModal(index, dups);
+                        img.onmouseover = () => {
+                            const originalPhoto = photos.find(p => p.name === original);
+                            if (originalPhoto && mapElements.markers[originalPhoto.name]) {
+                                mapElements.markers[originalPhoto.name].setIcon(highlightIcon);
+                                mapElements.markers[originalPhoto.name].openPopup();
+                            }
+                        };
+                        img.onmouseout = () => {
+                            const originalPhoto = photos.find(p => p.name === original);
+                            if (originalPhoto && mapElements.markers[originalPhoto.name]) {
+                                mapElements.markers[originalPhoto.name].setIcon(checkIcon);
+                                mapElements.markers[originalPhoto.name].closePopup();
+                            }
+                        };
+                        div.querySelector('button i.fa-trash').parentElement.onclick = () => {
+                            dups.splice(index, 1);
+                            duplicates = duplicates.filter(d => d !== duplicate);
+                            updateDuplicateList();
+                        };
+                        groupDiv.appendChild(div);
+                    });
+                    elements.duplicateList.appendChild(groupDiv);
+                }
+            }
+
+            elements.dropZone.onclick = () => elements.photoInput.click();
+            elements.photoInput.onchange = (e) => processFiles(e.target.files);
+            elements.loadFolderBtn.onclick = () => elements.folderInput.click();
+            elements.folderInput.onchange = (e) => processFiles(e.target.files);
+            elements.dropZone.ondrop = (e) => {
+                e.preventDefault();
+                elements.dropZone.classList.remove('dragover');
+                processFiles(e.dataTransfer.files);
+            };
+            elements.dropZone.ondragover = (e) => {
+                e.preventDefault();
+                elements.dropZone.classList.add('dragover');
+            };
+            elements.dropZone.ondragleave = () => elements.dropZone.classList.remove('dragover');
+
+            elements.clearBtn.onclick = () => {
+                showToast('Уверен, что хочешь всё очистить? Нажми ещё раз для подтверждения');
+                elements.clearBtn.onclick = () => {
+                    photos = [];
+                    duplicates = [];
+                    markers.clearLayers();
+                    mapElements.markers = {};
+                    mapElements.lines.forEach(line => map.removeLayer(line));
+                    mapElements.lines = [];
+                    if (coordsLayer) {
+                        map.removeLayer(coordsLayer);
+                        coordsLayer = null;
+                    }
+                    updateMapAndList();
+                    showToast('Все данные очищены');
+                    elements.clearBtn.onclick = elements.clearBtn.onclick;
+                };
+            };
+
+            elements.closeModal.onclick = () => {
+                elements.modalContent.style.opacity = '0';
+                setTimeout(() => elements.modal.style.display = 'none', 300);
+            };
+            elements.modal.onclick = (e) => { 
+                if (e.target === elements.modal) {
+                    elements.modalContent.style.opacity = '0';
+                    setTimeout(() => elements.modal.style.display = 'none', 300);
+                }
+            };
+
+            elements.saveCoordinates.onclick = async () => {
+                const lat = parseFloat(elements.manualLat.value);
+                const lon = parseFloat(elements.manualLon.value);
+                if (currentPhotoIndex !== null && !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                    photos[currentPhotoIndex].lat = lat;
+                    photos[currentPhotoIndex].lon = lon;
+                    await updateMapAndList();
+                    elements.modalContent.style.opacity = '0';
+                    setTimeout(() => elements.modal.style.display = 'none', 300);
+                    showToast('Координаты сохранены!');
+                } else {
+                    showToast('Введи правильные координаты (-90..90, -180..180)', true);
+                }
+            };
+
+            elements.prevPage.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateMapAndList();
+                }
+            };
+            elements.nextPage.onclick = () => {
+                if (currentPage < Math.ceil(photos.length / itemsPerPage)) {
+                    currentPage++;
+                    updateMapAndList();
+                }
+            };
+
+            elements.centerMap.onclick = () => {
+                if (photos.length > 0) {
+                    map.fitBounds(markers.getBounds());
+                } else if (coordsLayer && coordsLayer.getLayers().length > 0) {
+                    const bounds = L.latLngBounds();
+                    coordsLayer.eachLayer(layer => {
+                        if (layer instanceof L.Marker) bounds.extend(layer.getLatLng());
+                    });
+                    if (bounds.isValid()) map.fitBounds(bounds);
+                    else showToast('Невозможно центрировать карту, нет данных', true);
+                } else {
+                    showToast('Нет данных для центрирования', true);
+                }
+            };
+
+            elements.loadUrls.onclick = () => {
+                elements.urlModal.style.display = 'block';
+                setTimeout(() => elements.urlModal.querySelector('.url-modal-content').style.opacity = '1', 10);
+                elements.urlInput.value = '';
+            };
+
+            elements.closeUrlModal.onclick = () => {
+                elements.urlModal.querySelector('.url-modal-content').style.opacity = '0';
+                setTimeout(() => elements.urlModal.style.display = 'none', 300);
+            };
+            elements.urlModal.onclick = (e) => { 
+                if (e.target === elements.urlModal) {
+                    elements.urlModal.querySelector('.url-modal-content').style.opacity = '0';
+                    setTimeout(() => elements.urlModal.style.display = 'none', 300);
+                }
+            };
+
+            elements.loadUrlsBtn.onclick = () => {
+                const urlText = elements.urlInput.value.trim();
+                if (!urlText) {
+                    showToast('Введи хотя бы одну ссылку', true);
+                    return;
+                }
+                const urlRegex = /^https?:\/\/.+/;
+                const urls = urlText.split(/[\n,]+/).map(url => url.trim()).filter(url => url && urlRegex.test(url));
+                if (urls.length === 0) {
+                    showToast('Введи правильные ссылки (http:// или https://)', true);
+                    return;
+                }
+                if (urls.length > 20) {
+                    showToast('Максимум 20 фото за раз', true);
+                    urls.length = 20;
+                }
+                processMultipleUrls(urls);
+                elements.urlModal.querySelector('.url-modal-content').style.opacity = '0';
+                setTimeout(() => elements.urlModal.style.display = 'none', 300);
+            };
+
+            elements.calcDistanceCoords.onclick = () => {
+                elements.coordsModal.style.display = 'block';
+                setTimeout(() => elements.coordsModal.querySelector('.coords-modal-content').style.opacity = '1', 10);
+                elements.coordsInput.value = '';
+            };
+
+            elements.closeCoordsModal.onclick = () => {
+                elements.coordsModal.querySelector('.coords-modal-content').style.opacity = '0';
+                setTimeout(() => elements.coordsModal.style.display = 'none', 300);
+            };
+            elements.coordsModal.onclick = (e) => { 
+                if (e.target === elements.coordsModal) {
+                    elements.coordsModal.querySelector('.coords-modal-content').style.opacity = '0';
+                    setTimeout(() => elements.coordsModal.style.display = 'none', 300);
+                }
+            };
+
+            elements.calcDistanceBtn.onclick = () => {
+                const coordsText = elements.coordsInput.value.trim();
+                if (!coordsText) {
+                    showToast('Введи координаты', true);
+                    return;
+                }
+                calculateCoordsDistance(coordsText);
+                elements.coordsModal.querySelector('.coords-modal-content').style.opacity = '0';
+                setTimeout(() => elements.coordsModal.style.display = 'none', 300);
+            };
+
+            elements.uniqueOnly.onchange = () => updateMapAndList();
+            elements.distanceFilter.onchange = () => updateMapAndList();
+
+            function calculateCoordsDistance(coordsText) {
+                const coords = coordsText.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line)
+                    .map(line => {
+                        const [lat, lon] = line.split(',').map(Number);
+                        return { lat, lon };
+                    })
+                    .filter(point => !isNaN(point.lat) && !isNaN(point.lon) && 
+                                    point.lat >= -90 && point.lat <= 90 && 
+                                    point.lon >= -180 && point.lon <= 180);
+
+                if (coords.length < 2) {
+                    showToast('Введи хотя бы две пары координат', true);
+                    return;
+                }
+
+                if (coordsLayer) map.removeLayer(coordsLayer);
+                coordsLayer = L.layerGroup();
+
+                const sortedCoords = nearestNeighborSort(coords);
+                let totalDistance = 0;
+                const bounds = L.latLngBounds();
+
+                for (let index = 0; index < sortedCoords.length; index++) {
+                    const point = sortedCoords[index];
+                    const marker = L.marker([point.lat, point.lon]).bindPopup(`
+                        <strong>Точка ${index + 1}</strong><br>
+                        Координаты: ${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}
+                    `);
+                    coordsLayer.addLayer(marker);
+                    bounds.extend([point.lat, point.lon]);
+
+                    if (index > 0) {
+                        const prevPoint = sortedCoords[index - 1];
+                        const dist = haversine(prevPoint.lat, prevPoint.lon, point.lat, point.lon);
+                        totalDistance += dist;
+                        const midPoint = [(prevPoint.lat + point.lat) / 2, (prevPoint.lon + point.lon) / 2];
+                        const line = L.polyline([[prevPoint.lat, prevPoint.lon], [point.lat, point.lon]], {
+                            color: 'blue',
+                            weight: 3
+                        });
+                        coordsLayer.addLayer(line);
+
+                        L.marker(midPoint, {
+                            icon: L.divIcon({
+                                className: 'distance-label',
+                                html: `<span style="background: white; padding: 2px 5px; border-radius: 3px; font-size: 12px; color: #333;">${dist.toFixed(2)} м</span>`,
+                                iconSize: [100, 20]
+                            })
+                        }).addTo(coordsLayer);
+                    }
+                }
+
+                coordsLayer.addTo(map);
+                if (bounds.isValid()) map.fitBounds(bounds);
+                else showToast('Невозможно отобразить границы, проверь координаты', true);
+                showToast(`Общее расстояние: ${(totalDistance / 1000).toFixed(2)} км`);
+            }
+        });
+    </script>
+</body>
+</html>
