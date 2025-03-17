@@ -699,9 +699,7 @@ export default function MapView({
             style={{ 
               backgroundColor: isPanelVisible === 'safety' ? 'var(--accent)' : 'var(--error)', 
               textShadow: '0px 1px 2px var(--shadow-strong)',
-              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`,
-              opacity: selectedPhoto ? 1 : 0.7, 
-              cursor: selectedPhoto ? 'pointer' : 'not-allowed'
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
             }}
             onClick={onToggleSafetyPanel}
           >

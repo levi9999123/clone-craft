@@ -80,18 +80,41 @@ export default function Home() {
 
   const togglePanel = (panelType: 'nearby' | 'duplicate' | 'safety') => {
     if (panelType === 'nearby') {
-      // Для отображения панели близких точек нужно выбрать фото
-      if (!selectedPhoto) {
+      // Для отображения панели близких точек нужны фотографии с координатами
+      const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
+      if (photosWithCoords.length === 0) {
         toast({
-          title: "Выберите фотографию",
-          description: "Сначала выберите фото на карте, чтобы найти близкие точки",
+          title: "Нет фотографий с координатами",
+          description: "Загрузите фотографии с координатами, чтобы найти близкие точки",
           variant: "destructive"
+        });
+        return;
+      }
+      
+      // Автоматически находим все близкие точки
+      const closePhotos = photos.filter(photo => photo.isVeryClose);
+      if (closePhotos.length === 0) {
+        toast({
+          title: "Близких точек не найдено",
+          description: "Не найдены точки, расположенные ближе 25 метров друг от друга",
+          variant: "default"
         });
         return;
       }
       
       setIsPanelVisible(current => current === panelType ? null : panelType);
     } else if (panelType === 'duplicate') {
+      // Для отображения панели дубликатов нужны фотографии с координатами
+      const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
+      if (photosWithCoords.length === 0) {
+        toast({
+          title: "Нет фотографий с координатами",
+          description: "Загрузите фотографии с координатами, чтобы найти дубликаты",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       // Обновляем группы дубликатов перед открытием панели
       const duplicates = findDuplicates(photos);
       setDuplicateGroups(duplicates);

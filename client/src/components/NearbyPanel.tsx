@@ -120,39 +120,33 @@ export default function NearbyPanel({ onClose }: NearbyPanelProps) {
   };
   
   useEffect(() => {
-    if (!selectedPhoto) return;
+    const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
     
-    // Конвертируем радиус из км в единицы поиска
-    const nearby = findNearbyPhotos(photos, selectedPhoto, searchRadius);
-    
-    // Сортируем по расстоянию, если включена опция
-    const sorted = sortByDistance 
-      ? [...nearby].sort((a, b) => (a.distance || 0) - (b.distance || 0))
-      : nearby;
+    // Если есть выбранная фотография, ищем близкие к ней
+    if (selectedPhoto) {
+      // Конвертируем радиус из км в единицы поиска
+      const nearby = findNearbyPhotos(photos, selectedPhoto, searchRadius);
       
-    setNearbyPhotos(sorted);
+      // Сортируем по расстоянию, если включена опция
+      const sorted = sortByDistance 
+        ? [...nearby].sort((a, b) => (a.distance || 0) - (b.distance || 0))
+        : nearby;
+        
+      setNearbyPhotos(sorted);
+    } else if (photosWithCoords.length > 0) {
+      // Если нет выбранной фотографии, но есть фотографии с координатами,
+      // показываем все фотографии помеченные как очень близкие (isVeryClose)
+      const closePhotos = photosWithCoords.filter(photo => photo.isVeryClose);
+      setNearbyPhotos(closePhotos);
+    } else {
+      setNearbyPhotos([]);
+    }
   }, [photos, selectedPhoto, searchRadius, sortByDistance]);
   
   // Отдельный эффект для отрисовки линий
   useEffect(() => {
     drawPathLines();
   }, [nearbyPhotos, showLines, selectedPhoto]);
-  
-  if (!selectedPhoto) {
-    return (
-      <div className="w-80 bg-white shadow-md border-l border-gray-200 overflow-y-auto">
-        <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-primary">Близкие точки</h3>
-          <button className="text-gray-500 hover:text-primary" onClick={onClose}>
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-        <div className="p-4">
-          <p className="text-gray-500 text-center">Выберите фотографию, чтобы увидеть близкие точки</p>
-        </div>
-      </div>
-    );
-  }
   
   // Для радиуса в метрах, отображаем в метрах
   const radiusDisplay = searchRadius * 1000; // конвертируем в метры для отображения
