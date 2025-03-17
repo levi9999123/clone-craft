@@ -717,7 +717,7 @@ export default function MapView({
             }}></div>
           <span className="font-semibold">Фото с координатами</span>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center mb-2">
           <div className="w-5 h-5 rounded-full mr-2" 
             style={{ 
               backgroundColor: 'var(--accent)', 
@@ -725,6 +725,15 @@ export default function MapView({
               boxShadow: '0 0 4px var(--shadow)' 
             }}></div>
           <span className="font-semibold">Выбранное фото</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-6 h-6 rounded-full mr-2" 
+            style={{ 
+              backgroundColor: '#ff0000', 
+              border: '2px solid var(--bg)', 
+              boxShadow: '0 0 8px rgba(255,0,0,0.7)' 
+            }}></div>
+          <span className="font-semibold">Близкие точки (менее 25м)</span>
         </div>
       </div>
       

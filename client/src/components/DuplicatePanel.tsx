@@ -75,18 +75,28 @@ export default function DuplicatePanel({ onClose }: DuplicatePanelProps) {
                   </div>
                   
                   {/* Остальные точки группы */}
-                  {group.slice(1).map(photo => (
-                    <div key={photo.id} className="relative">
-                      <div className="absolute -left-2 top-2 bg-green-500 text-white text-xs px-1 py-0.5 rounded">
-                        {getDistanceDisplay(photo, basePhoto)}
+                  {group.slice(1).map(photo => {
+                    // Вычисляем расстояние в метрах для проверки близости точек
+                    const distanceInMeters = photo.distance ? photo.distance * 1000 : null;
+                    const isVeryClose = distanceInMeters !== null && distanceInMeters < 25;
+                    
+                    return (
+                      <div key={photo.id} className="relative">
+                        <div 
+                          className={`absolute -left-2 top-2 text-white text-xs px-1 py-0.5 rounded ${
+                            isVeryClose ? 'bg-red-500' : 'bg-green-500'
+                          }`}
+                        >
+                          {getDistanceDisplay(photo, basePhoto)}
+                        </div>
+                        <PhotoItem
+                          photo={photo}
+                          onRemove={() => removePhoto(photo.id)}
+                          onClick={() => selectPhoto(photo)}
+                        />
                       </div>
-                      <PhotoItem
-                        photo={photo}
-                        onRemove={() => removePhoto(photo.id)}
-                        onClick={() => selectPhoto(photo)}
-                      />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
