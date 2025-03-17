@@ -89,7 +89,7 @@ export default function URLModal({ onClose }: URLModalProps) {
             Отмена
           </button>
           <button 
-            className="bg-primary text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors relative"
+            className="url-submit-btn bg-primary text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors relative"
             onClick={handleSubmit}
             disabled={isLoading}
           >
@@ -99,7 +99,7 @@ export default function URLModal({ onClose }: URLModalProps) {
                 <i className="fas fa-spinner fa-spin absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
               </>
             ) : (
-              'Загрузить'
+              <span>Загрузить</span>
             )}
           </button>
         </div>

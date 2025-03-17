@@ -83,7 +83,7 @@ export default function PhotoItem({
       <div className="flex gap-1 justify-end">
         {photo.lat !== null && photo.lon !== null && (
           <button 
-            className="bg-primary text-white p-1 rounded hover:bg-primary-dark transition-colors"
+            className="photo-button copy-btn bg-primary text-white p-1 rounded hover:bg-primary-dark transition-colors"
             onClick={copyCoordinates}
             title="Скопировать координаты"
           >
@@ -92,7 +92,7 @@ export default function PhotoItem({
         )}
         
         <button 
-          className="bg-error text-white p-1 rounded hover:bg-red-700 transition-colors"
+          className="photo-button delete-btn bg-error text-white p-1 rounded hover:bg-red-700 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
