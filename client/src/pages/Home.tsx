@@ -141,11 +141,32 @@ export default function Home() {
   
   const toggleSafetyPanel = async () => {
     try {
-      // Всегда переключаем панель, независимо от наличия фото
+      // Проверяем наличие выбранной фотографии перед открытием панели
+      if (!selectedPhoto) {
+        toast({
+          title: "Выберите фотографию",
+          description: "Сначала выберите фото на карте для проверки запрещенных объектов",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Проверяем наличие координат
+      if (!selectedPhoto.lat || !selectedPhoto.lon) {
+        toast({
+          title: "Отсутствуют координаты",
+          description: "У выбранного фото отсутствуют координаты. Невозможно выполнить проверку.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Переключаем панель только если есть выбранное фото с координатами
       setIsPanelVisible(current => current === 'safety' ? null : 'safety');
       
-      // Если есть выбранное фото с координатами, выполняем проверку безопасности
-      if (selectedPhoto && selectedPhoto.lat !== null && selectedPhoto.lon !== null) {
+      // Если панель уже открыта с результатами для этого фото, не делаем повторный запрос
+      const existingResults = restrictedObjects.length > 0;
+      if (isPanelVisible !== 'safety' && !existingResults) {
         showLoading('Проверка безопасности местоположения...', 1);
         
         try {
@@ -156,13 +177,14 @@ export default function Home() {
         } catch (error) {
           console.error('Ошибка при проверке безопасности:', error);
           // Отображаем уведомление об ошибке пользователю
-          alert('Не удалось выполнить проверку безопасности. Пожалуйста, попробуйте еще раз.');
+          toast({
+            title: "Ошибка проверки",
+            description: "Не удалось выполнить проверку безопасности. Попробуйте еще раз.",
+            variant: "destructive"
+          });
         } finally {
           hideLoading();
         }
-      } else {
-        // Если нет выбранного фото, очищаем список объектов
-        setRestrictedObjects([]);
       }
     } catch (error) {
       console.error('Непредвиденная ошибка при открытии панели безопасности:', error);
