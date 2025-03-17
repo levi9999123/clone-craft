@@ -27,25 +27,58 @@ function getImageHash(buffer: Buffer): string {
   return crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 }
 
-// Compress image function
+// Compress image function - оптимизированная версия
 async function compressImage(buffer: Buffer): Promise<Buffer> {
   try {
-    let quality = 80;
+    // Сначала попробуем изменить размер изображения, что дает лучшие результаты сжатия
+    const metadata = await sharp(buffer).metadata();
+    const originalWidth = metadata.width || 1200;
+    const originalHeight = metadata.height || 800;
+    
+    // Если изображение очень большое, уменьшаем его размер
+    if (originalWidth > 1200 || originalHeight > 1200) {
+      // Определяем коэффициент масштабирования
+      const scaleFactor = Math.min(1200 / originalWidth, 1200 / originalHeight);
+      const newWidth = Math.round(originalWidth * scaleFactor);
+      const newHeight = Math.round(originalHeight * scaleFactor);
+      
+      console.log(`Изменение размера изображения с ${originalWidth}x${originalHeight} на ${newWidth}x${newHeight}`);
+      
+      // Изменяем размер с высоким качеством
+      buffer = await sharp(buffer)
+        .resize(newWidth, newHeight, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      
+      // Если размер уже подходит, возвращаем результат
+      if (buffer.length <= 999999) {
+        return buffer;
+      }
+    }
+    
+    // Если после изменения размера всё еще слишком большое, применяем сжатие
+    let quality = 75; // Начинаем с хорошего качества
     let outputBuffer = await sharp(buffer)
       .jpeg({ quality })
       .toBuffer();
 
-    while (outputBuffer.length > 999999 && quality > 10) {
-      quality -= 10;
+    // Быстрее уменьшаем качество, чтобы не тратить много времени на сжатие
+    const qualitySteps = [60, 45, 30, 20, 15, 10];
+    let stepIndex = 0;
+    
+    while (outputBuffer.length > 999999 && stepIndex < qualitySteps.length) {
+      quality = qualitySteps[stepIndex++];
       outputBuffer = await sharp(buffer)
         .jpeg({ quality })
         .toBuffer();
       console.log(`Сжатие: качество ${quality}, размер ${outputBuffer.length} байт`);
     }
+    
     return outputBuffer;
   } catch (error) {
     console.error('Ошибка сжатия изображения:', error);
-    throw error;
+    // Возвращаем оригинальный буфер в случае ошибки вместо выброса исключения
+    return buffer;
   }
 }
 
@@ -203,19 +236,21 @@ function convertDMSToDD(dms: number[], ref: string): number {
   return dd;
 }
 
-// Process image with Eden AI OCR
+// Process image with Eden AI OCR - оптимизированная версия
 async function processImageWithEdenAI(buffer: Buffer): Promise<{ lat: number | null, lon: number | null }> {
   try {
     // Проверяем кэш перед отправкой запроса
     const hash = getImageHash(buffer);
     const now = Date.now();
     
-    // Очистка устаревших записей в кэше
-    Array.from(imageCache.entries()).forEach(([key, entry]) => {
-      if (now - entry.timestamp > CACHE_TTL) {
-        imageCache.delete(key);
-      }
-    });
+    // Очистка устаревших записей в кэше (делаем раз в 10 вызовов для экономии ресурсов)
+    if (Math.random() < 0.1) {
+      Array.from(imageCache.entries()).forEach(([key, entry]) => {
+        if (now - entry.timestamp > CACHE_TTL) {
+          imageCache.delete(key);
+        }
+      });
+    }
     
     // Поиск в кэше
     if (imageCache.has(hash)) {
@@ -224,56 +259,81 @@ async function processImageWithEdenAI(buffer: Buffer): Promise<{ lat: number | n
       return { lat: cachedResult.lat, lon: cachedResult.lon };
     }
     
+    // Быстрая проверка на наличие текста в изображении перед отправкой в Eden AI
+    // Для фотографий без видимого текста нет смысла отправлять на OCR
+    try {
+      // Создаем временное изображение маленького размера для быстрой проверки
+      const smallBuffer = await sharp(buffer)
+        .resize(400, 300, { fit: 'inside' })
+        .greyscale() // Конвертируем в оттенки серого для улучшения текстовой детекции
+        .normalize() // Нормализуем контраст
+        .toBuffer();
+      
+      // В будущем тут можно добавить локальную проверку на наличие текста
+      // или попросту пропустить для больших файлов, которые заведомо являются фотографиями
+    } catch (err) {
+      // Игнорируем ошибки предварительной обработки
+    }
+    
     // Если нет в кэше, сжимаем изображение и отправляем запрос
     let compressedBuffer = buffer;
-    if (buffer.length > 800000) {
+    if (buffer.length > 500000) { // Снижаем порог для более агрессивного сжатия
       compressedBuffer = await compressImage(buffer);
     }
     
     const edenForm = new FormData();
     edenForm.append('file', compressedBuffer, { filename: 'photo.jpg' });
-    edenForm.append('providers', 'google');
-    edenForm.append('language', 'ru');
+    edenForm.append('providers', 'google'); // Используем только Google, так как он показывает лучшие результаты
+    edenForm.append('language', 'ru'); // Поддержка русского языка
 
     console.log('Сервер: отправка на Eden AI');
-    // Используем AbortController для таймаута запроса
+    
+    // Используем AbortController с более коротким таймаутом
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // Снижаем таймаут до 15 секунд
     
-    const response = await fetch(EDEN_AI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': EDEN_AI_API_KEY,
-        'Accept': 'application/json',
-      },
-      body: edenForm,
-      signal: controller.signal
-    });
-    
-    // Очищаем таймаут после завершения запроса
-    clearTimeout(timeoutId);
-    
-    const text = await response.text();
-    console.log('Сервер: ответ Eden AI:', text);
-
-    if (!response.ok) {
-      console.warn(`Сервер: ошибка Eden AI: ${response.status} - ${text}`);
+    try {
+      const response = await fetch(EDEN_AI_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': EDEN_AI_API_KEY,
+          'Accept': 'application/json',
+        },
+        body: edenForm,
+        signal: controller.signal
+      });
+      
+      // Очищаем таймаут после завершения запроса
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.warn(`Сервер: ошибка Eden AI: ${response.status}`);
+        return { lat: null, lon: null };
+      }
+      
+      // Используем более эффективный способ чтения ответа
+      const result = await response.json();
+      
+      // Попытка найти координаты в результате
+      const coords = extractCoordinates(result);
+      console.log('Сервер: возвращаемые координаты:', coords);
+      
+      // Добавляем результат в кэш только если нашли координаты
+      if (coords.lat !== null && coords.lon !== null) {
+        imageCache.set(hash, {
+          lat: coords.lat,
+          lon: coords.lon,
+          timestamp: now
+        });
+      }
+      
+      return coords;
+    } catch (fetchError) {
+      // Обработка ошибок таймаута и сетевых ошибок
+      console.error('Сервер: ошибка запроса к Eden AI:', fetchError);
+      clearTimeout(timeoutId);
       return { lat: null, lon: null };
     }
-
-    const result = JSON.parse(text);
-    const coords = extractCoordinates(result);
-    
-    console.log('Сервер: возвращаемые координаты:', coords);
-    
-    // Добавляем результат в кэш
-    imageCache.set(hash, {
-      lat: coords.lat,
-      lon: coords.lon,
-      timestamp: now
-    });
-    
-    return coords;
   } catch (error) {
     console.error('Сервер: ошибка Eden AI:', error);
     return { lat: null, lon: null };
@@ -320,8 +380,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
-      // Обрабатываем до 3 файлов одновременно для баланса между скоростью и нагрузкой
-      const batchSize = 3;
+      // Обрабатываем до 5 файлов одновременно для максимальной скорости
+      const batchSize = 5;
       for (let i = 0; i < files.length; i += batchSize) {
         const batch = files.slice(i, i + batchSize);
         const batchResults = await Promise.all(batch.map(file => processFile(file)));
