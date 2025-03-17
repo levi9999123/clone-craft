@@ -369,6 +369,9 @@ export async function fetchNearbyObjects(lat: number, lon: number, radius: numbe
 
 // Функция обогащения списка объектов информацией о типе
 // на основе тегов и названий, с улучшенным определением типа объекта
+// Функция-алиас для решения конфликта импортов
+export const checkSafetyForPhoto = checkLocationSafety;
+
 export function enrichObjectsWithTypeInfo(objects: any[]): NearbyObject[] {
   return objects.map(obj => {
     let objectType = 'building';
