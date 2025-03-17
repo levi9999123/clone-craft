@@ -278,38 +278,38 @@ export default function SafetyCheckPanel({
       <div className="mb-4 p-3 rounded-lg border border-gray-200">
         <div className="flex justify-between mb-3">
           <button 
-            className="px-3 py-2 bg-primary text-white rounded shadow hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="safety-check-all-btn px-3 py-2 bg-primary text-white rounded shadow hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading || photosWithCoords.length === 0}
             onClick={checkAllPhotos}
           >
             {isLoading ? (
               <>
                 <i className="fas fa-spinner fa-spin mr-2"></i>
-                Проверка...
+                <span>Проверка...</span>
               </>
             ) : (
               <>
                 <i className="fas fa-shield-alt mr-2"></i>
-                Проверить все фото
+                <span>Проверить все фото</span>
               </>
             )}
           </button>
           
           {selectedPhoto && selectedPhoto.lat !== null && selectedPhoto.lon !== null && (
             <button 
-              className="px-3 py-2 bg-accent text-white rounded shadow hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="safety-check-current-btn px-3 py-2 bg-accent text-white rounded shadow hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading}
               onClick={() => checkSinglePhoto(selectedPhoto)}
             >
               {isLoading ? (
                 <>
                   <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Проверка...
+                  <span>Проверка...</span>
                 </>
               ) : (
                 <>
                   <i className="fas fa-search-location mr-2"></i>
-                  Проверить текущее
+                  <span>Проверить текущее</span>
                 </>
               )}
             </button>
@@ -459,7 +459,7 @@ export default function SafetyCheckPanel({
               <i className="fas fa-map-marker-alt mr-1"></i>
               <span>Координаты: {selectedPhoto.lat?.toFixed(6)}, {selectedPhoto.lon?.toFixed(6)}</span>
               <button 
-                className="ml-2 p-1 bg-primary text-white rounded hover:bg-primary-dark"
+                className="coords-copy-btn ml-2 p-1 bg-primary text-white rounded hover:bg-primary-dark"
                 onClick={() => {
                   if (selectedPhoto.lat && selectedPhoto.lon) {
                     navigator.clipboard.writeText(`${selectedPhoto.lat}, ${selectedPhoto.lon}`);

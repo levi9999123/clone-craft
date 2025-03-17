@@ -177,7 +177,14 @@ button,
 button[class*="bg-primary"],
 button[class*="bg-accent"],
 button[class*="bg-error"],
-.leaflet-marker-icon button, 
+button[class*="bg-gray"],
+.photo-item button,
+.url-submit-btn,
+.safety-btn,
+div[class*="flex justify-between"] button,
+div[class*="flex justify-end"] button,
+div[class*="p-4 bg-gray-50"] button,
+.leaflet-marker-icon button,
 .leaflet-marker-icon .button,
 .marker-buttons,
 .leaflet-popup button,
@@ -190,6 +197,7 @@ button[class*="bg-error"],
   cursor: pointer !important;
   transition: transform 0.2s, background-color 0.2s !important;
   z-index: 10 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* Круглые кнопки на карте */

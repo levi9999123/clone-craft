@@ -82,11 +82,11 @@ export default function URLModal({ onClose }: URLModalProps) {
         
         <div className="p-4 bg-gray-50 flex justify-end space-x-2">
           <button 
-            className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+            className="cancel-btn bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
             onClick={onClose}
             disabled={isLoading}
           >
-            Отмена
+            <span>Отмена</span>
           </button>
           <button 
             className="url-submit-btn bg-primary text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors relative"
