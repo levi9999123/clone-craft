@@ -347,11 +347,36 @@ export default function MapView({
     return route;
   };
   
+  // Функция для очистки маршрутных линий
+  const clearRouteLines = () => {
+    if (!mapRef.current) return;
+    
+    // Очищаем предыдущие линии и метки
+    if (routeLayerRef.current) {
+      mapRef.current.removeLayer(routeLayerRef.current);
+      routeLayerRef.current = null;
+    }
+    
+    if (distanceMarkersRef.current) {
+      mapRef.current.removeLayer(distanceMarkersRef.current);
+      distanceMarkersRef.current = null;
+    }
+    
+    // Удаляем информацию о маршруте
+    const routeInfoElement = document.querySelector('.route-info');
+    if (routeInfoElement) {
+      routeInfoElement.remove();
+    }
+  };
+  
   // Функция для отображения линий между точками (маршрут)
   const drawRouteLines = () => {
     if (!mapRef.current || !window.L) return;
     
     const L = window.L;
+    
+    // Сначала очищаем предыдущие линии
+    clearRouteLines();
     
     // Очищаем предыдущие линии
     if (routeLayerRef.current) {
@@ -549,10 +574,14 @@ export default function MapView({
   useEffect(() => {
     if (mapInitialized) {
       updateMarkers();
+      
       // Также рисуем маршрут, если есть достаточно точек
       const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
       if (photosWithCoords.length >= 2) {
         drawRouteLines();
+      } else {
+        // Если фотографий недостаточно для построения маршрута, очищаем линии
+        clearRouteLines();
       }
     }
   }, [photos, selectedPhoto, mapInitialized]);
