@@ -15,6 +15,7 @@ interface MapViewProps {
 export default function MapView({ 
   onToggleNearbyPanel, 
   onToggleDuplicatePanel,
+  onToggleSafetyPanel,
   isPanelVisible
 }: MapViewProps) {
   const { photos, selectPhoto, selectedPhoto, setDuplicateGroups } = usePhotoContext();
@@ -113,6 +114,8 @@ export default function MapView({
         
         mapRef.current = map;
         markersRef.current = markers;
+        // Сохраняем экземпляр карты в глобальной области для доступа из других компонентов
+        (window as any).mapInstance = map;
         setMapInitialized(true);
         
         console.log("Карта создана успешно!");
@@ -137,6 +140,8 @@ export default function MapView({
         mapRef.current = null;
         markersRef.current = null;
         tileLayerRef.current = null;
+        // Очищаем глобальную ссылку на карту
+        (window as any).mapInstance = null;
       }
     };
   }, [mapInitialized, useCluster]);
@@ -325,6 +330,21 @@ export default function MapView({
             }}
           >
             <i className="fas fa-search mr-1"></i> Поиск
+          </button>
+        </TooltipWrapper>
+        
+        <TooltipWrapper text="Проверка безопасности местоположения" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: isPanelVisible === 'safety' ? 'var(--accent)' : 'var(--error)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+            }}
+            onClick={onToggleSafetyPanel}
+            disabled={!selectedPhoto}
+          >
+            <i className="fas fa-shield-alt mr-1"></i> Безопасность
           </button>
         </TooltipWrapper>
         

@@ -39,7 +39,7 @@ export default function Home() {
         
         try {
           // Получаем список близлежащих запрещенных объектов
-          const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon, 200);
+          const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon);
           setRestrictedObjects(objects);
           
           // Если найдены объекты, автоматически открываем панель проверки
@@ -62,6 +62,12 @@ export default function Home() {
 
   const togglePanel = (panelType: 'nearby' | 'duplicate' | 'safety') => {
     setIsPanelVisible(current => current === panelType ? null : panelType);
+  };
+  
+  const toggleSafetyPanel = () => {
+    if (selectedPhoto && selectedPhoto.lat && selectedPhoto.lon) {
+      setIsPanelVisible(current => current === 'safety' ? null : 'safety');
+    }
   };
 
   const showLoading = (message: string, total: number) => {
@@ -94,6 +100,7 @@ export default function Home() {
         <MapView 
           onToggleNearbyPanel={() => togglePanel('nearby')}
           onToggleDuplicatePanel={() => togglePanel('duplicate')}
+          onToggleSafetyPanel={toggleSafetyPanel}
           isPanelVisible={isPanelVisible}
         />
         

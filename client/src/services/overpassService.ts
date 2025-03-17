@@ -153,9 +153,9 @@ export async function fetchNearbyRestrictedObjects(lat: number, lon: number, rad
 }
 
 // Функция проверки безопасности местоположения
-export async function checkLocationSafety(lat: number, lon: number): Promise<NearbyObject[]> {
+export async function checkLocationSafety(lat: number, lon: number, radius?: number): Promise<NearbyObject[]> {
   try {
-    return await fetchNearbyRestrictedObjects(lat, lon);
+    return await fetchNearbyRestrictedObjects(lat, lon, radius || 200);
   } catch (error) {
     console.error('Ошибка при проверке безопасности местоположения:', error);
     return [];

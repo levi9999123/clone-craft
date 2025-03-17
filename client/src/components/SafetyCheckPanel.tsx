@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
-import { NearbyObject, isSafeDistance, MINIMUM_SAFE_DISTANCE } from './SafetyCheckService';
+import { NearbyObject, isSafeDistance, MINIMUM_SAFE_DISTANCE, drawPolylinesBetweenPoints } from './SafetyCheckService';
 
 interface SafetyCheckPanelProps {
   isOpen: boolean;
@@ -21,10 +21,70 @@ export default function SafetyCheckPanel({
     if (restrictedObjects && restrictedObjects.length > 0) {
       const sorted = [...restrictedObjects].sort((a, b) => a.distance - b.distance);
       setSortedObjects(sorted);
+      
+      // Отображаем полилинии на карте для визуализации расстояний
+      if (selectedPhoto && selectedPhoto.lat && selectedPhoto.lon && window.L) {
+        // Получаем ссылку на карту из глобальной области
+        const mapInstance = (window as any).mapInstance;
+        if (mapInstance) {
+          // Вначале удаляем все существующие полилинии
+          const layers = mapInstance._layers;
+          if (layers) {
+            Object.keys(layers).forEach(key => {
+              const layer = layers[key];
+              if (layer.options && layer.options.className === 'safety-polyline') {
+                mapInstance.removeLayer(layer);
+              }
+            });
+          }
+          
+          // Создаем массив точек для отображения полилиний
+          const points = sorted.map(obj => ({
+            lat: obj.lat,
+            lon: obj.lon
+          }));
+          
+          // Если есть фото и точки объектов, рисуем полилинии
+          if (selectedPhoto && points.length > 0) {
+            // Добавляем точку фото в начало массива для каждой полилинии
+            points.forEach(point => {
+              // Для каждой точки объекта создаем линию от фото до объекта
+              const L = window.L;
+              L.polyline(
+                [
+                  [selectedPhoto.lat, selectedPhoto.lon],
+                  [point.lat, point.lon]
+                ],
+                {
+                  color: 'var(--primary)',
+                  weight: 2,
+                  opacity: 0.6,
+                  dashArray: '5, 5',
+                  className: 'safety-polyline'
+                }
+              ).addTo(mapInstance);
+            });
+          }
+        }
+      }
     } else {
       setSortedObjects([]);
+      
+      // Удаляем все полилинии, если нет объектов
+      const mapInstance = (window as any).mapInstance;
+      if (mapInstance) {
+        const layers = mapInstance._layers;
+        if (layers) {
+          Object.keys(layers).forEach(key => {
+            const layer = layers[key];
+            if (layer.options && layer.options.className === 'safety-polyline') {
+              mapInstance.removeLayer(layer);
+            }
+          });
+        }
+      }
     }
-  }, [restrictedObjects]);
+  }, [restrictedObjects, selectedPhoto]);
   
   if (!isOpen) return null;
   
