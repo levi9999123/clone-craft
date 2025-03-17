@@ -131,7 +131,7 @@ export default function SafetyCheckPanel({
     }
   };
   
-  // Проверка всех фотографий
+  // Проверка всех фотографий с индикатором прогресса
   const checkAllPhotos = async () => {
     // Фильтруем только фотографии с координатами
     const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
@@ -143,17 +143,53 @@ export default function SafetyCheckPanel({
     
     try {
       const results = new Map<number, NearbyObject[]>();
+      const total = photosWithCoords.length;
       
-      // Проверяем каждую фотографию последовательно
-      for (const photo of photosWithCoords) {
+      // Прогресс загрузки
+      const updateProgress = (current: number, photoName: string) => {
+        const progressPercent = Math.round((current / total) * 100);
+        const progressElement = document.getElementById('batch-progress-bar');
+        const progressTextElement = document.getElementById('progress-text');
+        
+        if (progressElement) {
+          progressElement.style.width = `${progressPercent}%`;
+          progressElement.setAttribute('aria-valuenow', progressPercent.toString());
+        }
+        
+        if (progressTextElement) {
+          progressTextElement.textContent = `Проверено ${current} из ${total}: ${photoName}`;
+        }
+      };
+      
+      // Проверяем каждую фотографию последовательно с задержкой
+      // чтобы не перегружать API Overpass
+      for (let i = 0; i < photosWithCoords.length; i++) {
+        const photo = photosWithCoords[i];
         if (!photo.lat || !photo.lon) continue;
         
-        // Проверяем API для этой фотографии
-        const objects = await checkLocationSafety(photo.lat, photo.lon);
-        results.set(photo.id, objects);
+        // Обновляем индикатор прогресса
+        updateProgress(i, photo.name);
         
-        console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
+        try {
+          // Проверяем API для этой фотографии
+          const objects = await checkLocationSafety(photo.lat, photo.lon);
+          results.set(photo.id, objects);
+          
+          console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
+          
+          // Добавляем задержку 300мс между запросами, чтобы не перегружать Overpass API
+          if (i < photosWithCoords.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        } catch (error) {
+          console.error(`Ошибка при проверке фото ${photo.name}:`, error);
+          // Продолжаем с другими фото даже при ошибке с текущим
+          results.set(photo.id, []);
+        }
       }
+      
+      // Финальное обновление прогресса
+      updateProgress(total, "завершено");
       
       // Обновляем состояние
       setCheckedPhotos(results);
@@ -166,8 +202,11 @@ export default function SafetyCheckPanel({
     } catch (error) {
       console.error("Ошибка при проверке всех фотографий:", error);
     } finally {
-      setIsLoading(false);
-      setIsCheckingAll(false);
+      // Короткая задержка перед скрытием прогресс-бара
+      setTimeout(() => {
+        setIsLoading(false);
+        setIsCheckingAll(false);
+      }, 500);
     }
   };
   
@@ -275,6 +314,24 @@ export default function SafetyCheckPanel({
               <i className="fas fa-exclamation-triangle mr-1"></i>
               Фотографий с нарушениями: {getUnsafePhotosCount()}
             </p>
+          )}
+          
+          {/* Индикатор прогресса для пакетной проверки */}
+          {isLoading && isCheckingAll && (
+            <div className="mt-3">
+              <p id="progress-text" className="text-sm mb-1">Проверка фотографий...</p>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                <div 
+                  id="batch-progress-bar"
+                  className="bg-primary h-2.5 rounded-full transition-all ease-in-out" 
+                  style={{ width: '0%' }}
+                  role="progressbar" 
+                  aria-valuenow={0} 
+                  aria-valuemin={0} 
+                  aria-valuemax={100}
+                ></div>
+              </div>
+            </div>
           )}
         </div>
       </div>
