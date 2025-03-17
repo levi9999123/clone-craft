@@ -7,6 +7,8 @@
   --accent: #ff9500;
   --success: #28a745;
   --error: #dc3545;
+  --info: #17a2b8;
+  --warning: #ffc107;
   --bg: #f8f9fa;
   --sidebar-bg: #ffffff;
   --photo-bg: #ffffff;
@@ -31,6 +33,8 @@
   --accent: #ff9800;
   --success: #4caf50;
   --error: #f44336;
+  --info: #03a9f4;
+  --warning: #ffc107;
   --bg: #121212;
   --sidebar-bg: #1e1e1e;
   --photo-bg: #2c2c2c;

@@ -163,18 +163,20 @@ export default function ExportPanel({ isOpen, onClose, photos }: ExportPanelProp
       };
     });
 
-    // Добавляем линию маршрута
+    // Добавляем линию маршрута как отдельную фичу
+    const routePoints = photosWithCoords.map(photo => [photo.lon || 0, photo.lat || 0]);
+    
     const routeFeature = {
       type: "Feature",
       geometry: {
         type: "LineString",
-        coordinates: photosWithCoords.map(photo => [photo.lon || 0, photo.lat || 0])
+        coordinates: routePoints
       },
       properties: {
         name: "Маршрут",
         type: "route"
       }
-    };
+    } as any; // Используем any для обхода типизации
 
     features.push(routeFeature);
 

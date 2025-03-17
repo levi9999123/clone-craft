@@ -569,7 +569,7 @@ export default function MapView({
     <div id="map-container" className="flex-grow relative" style={{ minHeight: '100%', minWidth: '100%', background: 'var(--map-bg)' }}>
       <div id="map" ref={mapContainerRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10, background: 'var(--map-bg)' }}></div>
       
-      <div className="absolute top-3 right-3 space-x-2 z-[1000] flex">
+      <div className="absolute top-3 right-3 space-x-2 z-[1000] flex flex-wrap gap-2">
         <TooltipWrapper text="Показать ближайшие фотографии" position="bottom">
           <button 
             className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
@@ -609,6 +609,8 @@ export default function MapView({
             onClick={() => {
               setIsSearchOpen(!isSearchOpen);
               if (isSettingsOpen) setIsSettingsOpen(false);
+              if (isExportOpen) setIsExportOpen(false);
+              if (isStatsOpen) setIsStatsOpen(false);
             }}
           >
             <i className="fas fa-search mr-1"></i> Поиск
@@ -642,9 +644,69 @@ export default function MapView({
             onClick={() => {
               setIsSettingsOpen(!isSettingsOpen);
               if (isSearchOpen) setIsSearchOpen(false);
+              if (isExportOpen) setIsExportOpen(false);
+              if (isStatsOpen) setIsStatsOpen(false);
             }}
           >
             <i className="fas fa-cog mr-1"></i> Настройки
+          </button>
+        </TooltipWrapper>
+        
+        <TooltipWrapper text="Анализ маршрута и статистика" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: isStatsOpen ? 'var(--accent)' : 'var(--primary)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`,
+              opacity: photos.filter(p => p.lat !== null && p.lon !== null).length >= 2 ? 1 : 0.7,
+              cursor: photos.filter(p => p.lat !== null && p.lon !== null).length >= 2 ? 'pointer' : 'not-allowed'
+            }}
+            onClick={() => {
+              if (photos.filter(p => p.lat !== null && p.lon !== null).length < 2) return;
+              setIsStatsOpen(!isStatsOpen);
+              if (isSearchOpen) setIsSearchOpen(false);
+              if (isSettingsOpen) setIsSettingsOpen(false);
+              if (isExportOpen) setIsExportOpen(false);
+            }}
+          >
+            <i className="fas fa-chart-pie mr-1"></i> Статистика
+          </button>
+        </TooltipWrapper>
+        
+        <TooltipWrapper text="Экспорт маршрута в GPX/KML/GeoJSON" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: isExportOpen ? 'var(--accent)' : 'var(--primary)', 
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`,
+              opacity: photos.filter(p => p.lat !== null && p.lon !== null).length > 0 ? 1 : 0.7,
+              cursor: photos.filter(p => p.lat !== null && p.lon !== null).length > 0 ? 'pointer' : 'not-allowed'
+            }}
+            onClick={() => {
+              if (photos.filter(p => p.lat !== null && p.lon !== null).length === 0) return;
+              setIsExportOpen(!isExportOpen);
+              if (isSearchOpen) setIsSearchOpen(false);
+              if (isSettingsOpen) setIsSettingsOpen(false);
+              if (isStatsOpen) setIsStatsOpen(false);
+            }}
+          >
+            <i className="fas fa-file-export mr-1"></i> Экспорт
+          </button>
+        </TooltipWrapper>
+        
+        <TooltipWrapper text="Показать справку по использованию" position="bottom">
+          <button 
+            className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
+            style={{ 
+              backgroundColor: 'var(--info)',
+              textShadow: '0px 1px 2px var(--shadow-strong)',
+              boxShadow: `0 2px 5px var(--shadow), 0 0 0 2px rgba(255,255,255,0.2)`
+            }}
+            onClick={() => setIsHelpOpen(true)}
+          >
+            <i className="fas fa-question-circle mr-1"></i> Справка
           </button>
         </TooltipWrapper>
       </div>
@@ -689,6 +751,26 @@ export default function MapView({
           <span className="font-semibold">Выбранное фото</span>
         </div>
       </div>
+      
+      {/* Модальное окно справки */}
+      <HelpModal 
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+      />
+      
+      {/* Панель экспорта маршрута */}
+      <ExportPanel
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        photos={photos}
+      />
+      
+      {/* Панель статистики маршрута */}
+      <RouteStatsPanel
+        isOpen={isStatsOpen}
+        onClose={() => setIsStatsOpen(false)}
+        photos={photos}
+      />
     </div>
   );
 }
