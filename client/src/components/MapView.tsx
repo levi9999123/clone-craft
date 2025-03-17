@@ -315,12 +315,48 @@ export default function MapView({
     setDuplicateGroups(duplicates);
   };
 
-  // Функция для построения маршрута по порядку фотографий (от 1 к 2, от 2 к 3 и т.д.)
-  const buildSequentialRoute = (points: {lat: number, lon: number, id: number}[]): {lat: number, lon: number, id: number}[] => {
+  // Реализация алгоритма ближайшего соседа для построения маршрута
+  const buildNearestNeighborRoute = (points: {lat: number, lon: number, id: number}[]): {lat: number, lon: number, id: number}[] => {
     if (points.length <= 1) return points;
     
-    // Сортируем точки по ID - предполагается, что ID отражает порядок добавления фотографий
-    return [...points].sort((a, b) => a.id - b.id);
+    const result: {lat: number, lon: number, id: number}[] = [];
+    const unvisited = [...points];
+    
+    // Начинаем с первой точки
+    let current = unvisited.shift()!;
+    result.push(current);
+    
+    // Пока есть непосещенные точки
+    while (unvisited.length > 0) {
+      let minDistance = Infinity;
+      let nextIndex = -1;
+      
+      // Находим ближайшую точку к текущей
+      for (let i = 0; i < unvisited.length; i++) {
+        const distance = calculateDistance(
+          current.lat, 
+          current.lon, 
+          unvisited[i].lat, 
+          unvisited[i].lon
+        );
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          nextIndex = i;
+        }
+      }
+      
+      // Если нашли следующую точку
+      if (nextIndex !== -1) {
+        current = unvisited[nextIndex];
+        unvisited.splice(nextIndex, 1);
+        result.push(current);
+      } else {
+        break; // Если не нашли (например, нет координат), выходим
+      }
+    }
+    
+    return result;
   };
   
   // Функция для очистки маршрутных линий
@@ -369,8 +405,8 @@ export default function MapView({
     
     if (photoPoints.length < 2) return;
     
-    // Строим маршрут по порядку загрузки фотографий (1->2->3->4)
-    const routePoints = buildSequentialRoute(photoPoints);
+    // Используем алгоритм ближайшего соседа для более оптимального маршрута
+    const routePoints = buildNearestNeighborRoute(photoPoints);
     
     // Рисуем линии маршрута
     const polyline = L.polyline(
