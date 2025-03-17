@@ -71,37 +71,12 @@ export default function Home() {
     }
   }, [photos]);
   
-  // Эффект для проверки безопасности местоположения
+  // Очищаем результаты при закрытии панели безопасности
   useEffect(() => {
-    const checkSafety = async () => {
-      if (selectedPhoto && selectedPhoto.lat !== null && selectedPhoto.lon !== null) {
-        if (isPanelVisible === 'safety') {
-          // Показываем индикатор загрузки только если панель открыта
-          showLoading('Проверка безопасности местоположения...', 1);
-          
-          try {
-            // Получаем список близлежащих запрещенных объектов - новый формат
-            const result = await checkLocationSafety(selectedPhoto);
-            setRestrictedObjects(result.restrictedObjects || []);
-            
-            console.log(`Обнаружено объектов вблизи: ${result.restrictedObjects ? result.restrictedObjects.length : 0}`);
-          } catch (error) {
-            console.error('Ошибка при проверке безопасности:', error);
-          } finally {
-            hideLoading();
-          }
-        } else {
-          // Очищаем результаты, если панель закрыта
-          setRestrictedObjects([]);
-        }
-      } else {
-        // Если фото не выбрано или у него нет координат, сбрасываем список объектов
-        setRestrictedObjects([]);
-      }
-    };
-    
-    checkSafety();
-  }, [selectedPhoto, isPanelVisible]);
+    if (isPanelVisible !== 'safety') {
+      setRestrictedObjects([]);
+    }
+  }, [isPanelVisible]);
 
   const togglePanel = (panelType: 'nearby' | 'duplicate' | 'safety') => {
     if (panelType === 'nearby') {

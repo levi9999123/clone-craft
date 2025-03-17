@@ -119,42 +119,9 @@ export async function processFiles(files: File[], onProgress?: (current: number)
     photos.push(...batchResults);
   }
   
-  // Параллельно выполняем проверку безопасности для всех фотографий с координатами
-  const photosWithCoords = photos.filter(photo => photo.lat !== null && photo.lon !== null);
-  
-  if (photosWithCoords.length > 0) {
-    console.log(`Начало параллельной проверки безопасности для ${photosWithCoords.length} фотографий...`);
-    
-    // Выполняем все проверки безопасности параллельно
-    const safetyChecks = await Promise.allSettled(
-      photosWithCoords.map(async photo => {
-        try {
-          console.log(`Проверка безопасности для фото ${photo.name}...`);
-          // Используем новый формат вызова с передачей объекта фото
-          const result = await checkLocationSafety(photo);
-          const nearbyObjects = result.restrictedObjects || [];
-          
-          if (nearbyObjects.length > 0) {
-            // Добавляем флаг небезопасности к фотографии, если есть объекты рядом
-            photo.hasNearbyObjects = true;
-            photo.nearbyObjectsCount = nearbyObjects.length;
-            console.log(`Фото ${photo.name}: найдено ${nearbyObjects.length} объектов поблизости`);
-          } else {
-            photo.hasNearbyObjects = false;
-            console.log(`Фото ${photo.name}: объектов поблизости не обнаружено`);
-          }
-          return { photo, success: true };
-        } catch (error) {
-          console.error(`Не удалось выполнить проверку безопасности для фото ${photo.name}:`, error);
-          return { photo, success: false, error };
-        }
-      })
-    );
-    
-    console.log(`Завершение параллельной проверки безопасности: успешно ${
-      safetyChecks.filter(result => result.status === 'fulfilled').length
-    } из ${safetyChecks.length}`);
-  }
+  // ОТКЛЮЧАЕМ автоматическую проверку безопасности
+  // Пользователь будет запускать проверку вручную через "Проверка объектов"
+  console.log("Автоматическая проверка безопасности отключена. Используйте кнопку 'Проверка объектов'.");
   
   return photos;
 }
@@ -220,26 +187,9 @@ export async function processUrl(url: string): Promise<Photo | null> {
       nearbyObjectsCount: 0
     };
     
-    // Если есть координаты, проверяем безопасность параллельно с остальной обработкой
+    // ОТКЛЮЧАЕМ автоматическую проверку безопасности
     if (photo.lat !== null && photo.lon !== null) {
-      // Запускаем проверку безопасности, но не ждем её завершения
-      console.log(`Проверка безопасности для URL ${photo.name}...`);
-      checkLocationSafety(photo) // Передаем объект целиком
-        .then(result => {
-          const restrictedObjects = result.restrictedObjects || [];
-          if (restrictedObjects.length > 0) {
-            // Добавляем флаг небезопасности к фотографии, если есть объекты рядом
-            photo.hasNearbyObjects = true;
-            photo.nearbyObjectsCount = restrictedObjects.length;
-            console.log(`URL ${photo.name}: найдено ${restrictedObjects.length} объектов поблизости`);
-          } else {
-            photo.hasNearbyObjects = false;
-            console.log(`URL ${photo.name}: объектов поблизости не обнаружено`);
-          }
-        })
-        .catch(error => {
-          console.error(`Не удалось выполнить проверку безопасности для URL ${photo.name}:`, error);
-        });
+      console.log(`Автопроверка для URL ${photo.name} отключена. Используйте кнопку "Проверка объектов".`);
     }
     
     return photo;

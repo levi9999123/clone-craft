@@ -2,7 +2,8 @@
 // ВСЕ ЗАПРОСЫ ДОЛЖНЫ ИДТИ ЧЕРЕЗ SafetyCheckService.tsx
 
 // Импортируем правильные типы и функции из нового сервиса
-import { checkLocationSafety, fetchNearbyObjects, NearbyObject } from '../components/SafetyCheckService';
+import { NearbyObject } from '../components/SafetyCheckService';
+import { checkSafetyForPhoto } from '../components/SafetyCheckService';
 
 // ЭТОТ WRAPPER ПОЗВОЛЯЕТ ИМПОРТИРОВАТЬ ФУНКЦИИ ИЗ ЭТОГО ФАЙЛА
 // БЕЗ ИЗМЕНЕНИЯ ИХ СИГНАТУРЫ
@@ -26,7 +27,7 @@ export async function checkLocationSafety(lat: number, lon: number, radius?: num
   };
   
   // Вызываем новую версию функции
-  const result = await checkLocationSafety(photo);
+  const result = await checkSafetyForPhoto(photo);
   
   // Возвращаем массив объектов для обратной совместимости
   return result.restrictedObjects || [];
