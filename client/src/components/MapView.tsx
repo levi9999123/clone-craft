@@ -286,7 +286,13 @@ export default function MapView({
     }
   };
   
-  // Функция обновления маркеров (вынесена отдельно для повторного использования)
+  // Функция обновления дубликатов (вынесена отдельно)
+  const updateDuplicates = () => {
+    const duplicates = findDuplicates(photos);
+    setDuplicateGroups(duplicates);
+  };
+
+  // Функция обновления маркеров (теперь без обновления дубликатов)
   const updateMarkers = () => {
     if (!mapRef.current || !markersRef.current || !mapInitialized) return;
     if (typeof window === 'undefined' || !window.L) return;
@@ -336,20 +342,23 @@ export default function MapView({
       }
     });
     
-    // Find duplicate photos
-    const duplicates = findDuplicates(photos);
-    setDuplicateGroups(duplicates);
-    
     // Fit map to bounds if there are valid coordinates
     if (hasValidCoords && bounds.isValid()) {
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
   };
 
-  // Update markers when photos change
+  // Обновляем маркеры при изменении фотографий
   useEffect(() => {
-    updateMarkers();
-  }, [photos, selectedPhoto, mapInitialized, selectPhoto, setDuplicateGroups]);
+    if (mapInitialized) {
+      updateMarkers();
+    }
+  }, [photos, selectedPhoto, mapInitialized]);
+  
+  // Отдельный эффект для обновления дубликатов
+  useEffect(() => {
+    updateDuplicates();
+  }, [photos]);
 
   // Center map on selected photo with animation
   useEffect(() => {

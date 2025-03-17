@@ -61,11 +61,12 @@ export function findDuplicates(photos: Photo[]): Photo[][] {
       const comparePhoto = photos[j];
       if (comparePhoto.lat === null || comparePhoto.lon === null) continue;
 
+      // Так как мы уже проверили координаты на null выше, можем безопасно приводить их к number
       const distance = calculateDistance(
-        photo.lat, 
-        photo.lon, 
-        comparePhoto.lat, 
-        comparePhoto.lon
+        photo.lat as number, 
+        photo.lon as number, 
+        comparePhoto.lat as number, 
+        comparePhoto.lon as number
       );
       
       if (distance < 0.01) { // 10 meters
@@ -86,18 +87,22 @@ export function findDuplicates(photos: Photo[]): Photo[][] {
 
 // Find photos near a reference photo
 export function findNearbyPhotos(photos: Photo[], referencePhoto: Photo, maxDistance = 1): Photo[] {
+  // Проверяем, что у опорной фотографии есть координаты
   if (referencePhoto.lat === null || referencePhoto.lon === null) return [];
   
   return photos
     .filter(photo => {
+      // Исключаем саму опорную фотографию и фотографии без координат
       if (photo.id === referencePhoto.id) return false;
       if (photo.lat === null || photo.lon === null) return false;
       
+      // Так как мы уже проверили координаты на null выше, 
+      // можем безопасно приводить их к number
       const distance = calculateDistance(
-        referencePhoto.lat, 
-        referencePhoto.lon, 
-        photo.lat, 
-        photo.lon
+        referencePhoto.lat as number, 
+        referencePhoto.lon as number, 
+        photo.lat as number, 
+        photo.lon as number
       );
       
       photo.distance = distance;
