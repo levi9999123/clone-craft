@@ -77,6 +77,11 @@ export function findDuplicates(photos: Photo[]): Photo[][] {
         duplicates.push(comparePhoto);
         // Добавляем информацию о расстоянии для отображения
         comparePhoto.distance = distance;
+        
+        // Устанавливаем флаг для обоих фотографий
+        comparePhoto.isVeryClose = true;
+        photo.isVeryClose = true;
+        
         processed.add(j);
       }
     }

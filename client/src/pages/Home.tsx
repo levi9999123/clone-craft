@@ -9,7 +9,7 @@ import PhotoModal from '@/components/modals/PhotoModal';
 import URLModal from '@/components/modals/URLModal';
 import CoordsModal from '@/components/modals/CoordsModal';
 import PhotoPreview from '@/components/PhotoPreview';
-import { Photo } from '@/lib/utils';
+import { Photo, calculateDistance, findDuplicates } from '@/lib/utils';
 import { NearbyObject } from '@/components/SafetyCheckService';
 import { checkLocationSafety } from '@/services/overpassService';
 
@@ -30,6 +30,45 @@ export default function Home() {
       setIsPanelVisible('nearby');
     }
   }, [selectedPhoto]);
+  
+  // Эффект для автоматической проверки близких точек
+  useEffect(() => {
+    // Обновляем флаги для близких точек каждый раз при изменении списка фотографий
+    if (photos.length >= 2) {
+      // Вначале сбросим все флаги isVeryClose
+      photos.forEach(photo => {
+        photo.isVeryClose = false;
+      });
+      
+      // Найдем все дубликаты (это также обновит флаги isVeryClose)
+      const groups = findDuplicates(photos);
+      console.log(`Обнаружено ${groups.length} групп близких точек (менее 25м)`);
+      
+      // Дополнительная проверка расстояний между точками
+      // (двойная проверка для надежности)
+      for (let i = 0; i < photos.length; i++) {
+        const photo1 = photos[i];
+        if (!photo1.lat || !photo1.lon) continue;
+        
+        for (let j = i + 1; j < photos.length; j++) {
+          const photo2 = photos[j];
+          if (!photo2.lat || !photo2.lon) continue;
+          
+          const distance = calculateDistance(
+            photo1.lat, photo1.lon, 
+            photo2.lat, photo2.lon
+          );
+          
+          // Проверяем близкие точки (менее 25 метров)
+          if (distance * 1000 < 25) {
+            photo1.isVeryClose = true;
+            photo2.isVeryClose = true;
+            console.log(`Близкие точки: ${photo1.name} и ${photo2.name}, расстояние: ${(distance * 1000).toFixed(2)}м`);
+          }
+        }
+      }
+    }
+  }, [photos]);
   
   // Эффект для проверки безопасности местоположения
   useEffect(() => {
