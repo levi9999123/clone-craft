@@ -5,11 +5,27 @@ import multer from "multer";
 import sharp from "sharp";
 import fetch from "node-fetch";
 import FormData from "form-data";
+import crypto from "crypto";
 
 // Создаем хранилище в памяти для multer (используем объект для обхода типизации)
 const upload = multer({});
 const EDEN_AI_API_URL = 'https://api.edenai.run/v2/ocr/ocr';
 const EDEN_AI_API_KEY = process.env.EDEN_AI_API_KEY || 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYzhiMjFlN2QtMDllZS00MDlkLThjNWUtNmVhODUzZmZjZTIyIiwidHlwZSI6ImFwaV90b2tlbiJ9.fJwi4jDh9TXqC1WHmIk_EdjNzbVIgJvXkT08DOfPhAs';
+
+// Кэш для хранения результатов обработки изображений
+interface CacheEntry {
+  lat: number | null;
+  lon: number | null;
+  timestamp: number;
+}
+
+const imageCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 минут
+
+// Функция для вычисления хеша изображения
+function getImageHash(buffer: Buffer): string {
+  return crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+}
 
 // Compress image function
 async function compressImage(buffer: Buffer): Promise<Buffer> {
@@ -92,12 +108,36 @@ function convertDMSToDD(dms: number[], ref: string): number {
 
 // Process image with Eden AI OCR
 async function processImageWithEdenAI(buffer: Buffer): Promise<{ lat: number | null, lon: number | null }> {
-  const edenForm = new FormData();
-  edenForm.append('file', buffer, { filename: 'photo.jpg' });
-  edenForm.append('providers', 'google');
-  edenForm.append('language', 'ru');
-
   try {
+    // Проверяем кэш перед отправкой запроса
+    const hash = getImageHash(buffer);
+    const now = Date.now();
+    
+    // Очистка устаревших записей в кэше
+    Array.from(imageCache.entries()).forEach(([key, entry]) => {
+      if (now - entry.timestamp > CACHE_TTL) {
+        imageCache.delete(key);
+      }
+    });
+    
+    // Поиск в кэше
+    if (imageCache.has(hash)) {
+      const cachedResult = imageCache.get(hash)!;
+      console.log('Сервер: найдено в кэше, пропускаем запрос к Eden AI');
+      return { lat: cachedResult.lat, lon: cachedResult.lon };
+    }
+    
+    // Если нет в кэше, сжимаем изображение и отправляем запрос
+    let compressedBuffer = buffer;
+    if (buffer.length > 800000) {
+      compressedBuffer = await compressImage(buffer);
+    }
+    
+    const edenForm = new FormData();
+    edenForm.append('file', compressedBuffer, { filename: 'photo.jpg' });
+    edenForm.append('providers', 'google');
+    edenForm.append('language', 'ru');
+
     console.log('Сервер: отправка на Eden AI');
     // Используем AbortController для таймаута запроса
     const controller = new AbortController();
@@ -128,6 +168,14 @@ async function processImageWithEdenAI(buffer: Buffer): Promise<{ lat: number | n
     const coords = extractCoordinates(result);
     
     console.log('Сервер: возвращаемые координаты:', coords);
+    
+    // Добавляем результат в кэш
+    imageCache.set(hash, {
+      lat: coords.lat,
+      lon: coords.lon,
+      timestamp: now
+    });
+    
     return coords;
   } catch (error) {
     console.error('Сервер: ошибка Eden AI:', error);
@@ -148,18 +196,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const finalResults = [];
 
-      // Process files sequentially
-      for (const file of files) {
-        let fileBuffer = file.buffer;
-        console.log(`Сервер: обработка файла (${file.originalname}), размер: ${file.size} байт`);
-        
-        if (file.size > 999999) {
-          fileBuffer = await compressImage(fileBuffer);
-          console.log(`Сервер: сжатый размер файла (${file.originalname}): ${fileBuffer.length} байт`);
-        }
+      // Обрабатываем файлы параллельно для ускорения
+      const processFile = async (file: any) => {
+        try {
+          let fileBuffer = file.buffer;
+          console.log(`Сервер: обработка файла (${file.originalname}), размер: ${file.size} байт`);
+          
+          // Предварительная проверка кэша
+          const fileHash = getImageHash(fileBuffer);
+          if (imageCache.has(fileHash)) {
+            console.log(`Сервер: файл ${file.originalname} найден в кэше`);
+            const cachedResult = imageCache.get(fileHash)!;
+            return { name: file.originalname, lat: cachedResult.lat, lon: cachedResult.lon };
+          }
+          
+          if (file.size > 999999) {
+            fileBuffer = await compressImage(fileBuffer);
+            console.log(`Сервер: сжатый размер файла (${file.originalname}): ${fileBuffer.length} байт`);
+          }
 
-        const coords = await processImageWithEdenAI(fileBuffer);
-        finalResults.push({ name: file.originalname, lat: coords.lat, lon: coords.lon });
+          const coords = await processImageWithEdenAI(fileBuffer);
+          return { name: file.originalname, lat: coords.lat, lon: coords.lon };
+        } catch (error) {
+          console.error(`Ошибка при обработке файла ${file.originalname}:`, error);
+          return { name: file.originalname, lat: null, lon: null, error: true };
+        }
+      };
+      
+      // Обрабатываем до 3 файлов одновременно для баланса между скоростью и нагрузкой
+      const batchSize = 3;
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize);
+        const batchResults = await Promise.all(batch.map(file => processFile(file)));
+        finalResults.push(...batchResults);
       }
 
       console.log('Сервер: результаты обработки всех файлов:', finalResults);
