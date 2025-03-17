@@ -25,7 +25,6 @@ export default function SafetyCheckPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [showSelectMode, setShowSelectMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<number>>(new Set());
-  // Панель выбора фотографий должна быть закрыта по умолчанию
   const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);
   
   // Отслеживаем изменение выбранной фотографии
@@ -281,94 +280,10 @@ export default function SafetyCheckPanel({
 
   // Проверка всех фотографий с индикатором прогресса и учетом границ объектов
   const checkAllPhotos = async () => {
-    // Проверяем все фотографии без открытия модального окна
-    const photosToCheck = photos.filter(p => p.lat !== null && p.lon !== null);
-    
-    if (photosToCheck.length === 0) return;
-    
-    setIsCheckingAll(true);
-    setIsLoading(true);
-    
-    try {
-      const { checkLocationSafety: checkPhotoSafety } = await import('./SafetyCheckService');
-      
-      const results = new Map<number, NearbyObject[]>();
-      const total = photosToCheck.length;
-      
-      console.log(`Начало параллельной проверки безопасности для ${total} фотографий...`);
-      
-      // Прогресс загрузки
-      const updateProgress = (current: number, photoName: string) => {
-        const progressPercent = Math.round((current / total) * 100);
-        const progressElement = document.getElementById('batch-progress-bar');
-        const progressTextElement = document.getElementById('progress-text');
-        
-        if (progressElement) {
-          progressElement.style.width = `${progressPercent}%`;
-          progressElement.setAttribute('aria-valuenow', progressPercent.toString());
-        }
-        
-        if (progressTextElement) {
-          progressTextElement.textContent = `Проверено ${current} из ${total}: ${photoName}`;
-        }
-      };
-      
-      // Проверяем каждую фотографию последовательно
-      for (let i = 0; i < photosToCheck.length; i++) {
-        const photo = photosToCheck[i];
-        if (!photo.lat || !photo.lon) continue;
-        
-        // Обновляем индикатор прогресса
-        updateProgress(i, photo.name);
-        console.log(`Проверка безопасности для фото ${photo.name}...`);
-        
-        try {
-          const result = await checkPhotoSafety(photo);
-          const objects = result.restrictedObjects || [];
-          
-          // Сохраняем результаты
-          results.set(photo.id, objects);
-          
-          // Устанавливаем флаг запрещенных объектов для индикации на карте
-          photo.restrictedObjectsNearby = objects.length > 0;
-          photo.nearbyObjectsCount = objects.length;
-          
-          console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
-          
-          // Добавляем задержку между запросами
-          if (i < photosToCheck.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-        } catch (error) {
-          console.error(`Ошибка при проверке фото ${photo.name}:`, error);
-          results.set(photo.id, []);
-        }
-      }
-      
-      // Финальное обновление прогресса
-      updateProgress(total, "завершено");
-      console.log(`Завершение параллельной проверки безопасности: успешно ${results.size} из ${total}`);
-      
-      // Обновляем состояние
-      const mergedMap = new Map(checkedPhotos);
-      results.forEach((value, key) => {
-        mergedMap.set(key, value);
-      });
-      setCheckedPhotos(mergedMap);
-      
-      // Если есть выбранное фото, обновляем список объектов
-      if (selectedPhotoId && results.has(selectedPhotoId)) {
-        setSortedObjects(results.get(selectedPhotoId) || []);
-      }
-      
-    } catch (error) {
-      console.error("Ошибка при проверке фотографий:", error);
-    } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-        setIsCheckingAll(false);
-      }, 500);
-    }
+    // Показываем модальное окно с выбором фотографий вместо немедленной проверки
+    setIsCheckModalOpen(true);
+    setShowSelectMode(true);
+    selectAllPhotos(); // По умолчанию выбираем все фотографии
   };
   
   // Определение общего статуса безопасности
