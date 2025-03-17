@@ -325,10 +325,142 @@ export default function SafetyCheckPanel({
 
   // Проверка всех фотографий с индикатором прогресса и учетом границ объектов
   const checkAllPhotos = async () => {
-    // Показываем модальное окно с выбором фотографий вместо немедленной проверки
-    setIsCheckModalOpen(true);
-    setShowSelectMode(true);
-    selectAllPhotos(); // По умолчанию выбираем все фотографии
+    // Вместо показа модального окна, проверяем все фотографии автоматически
+    const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
+    if (photosWithCoords.length === 0) {
+      toast({
+        title: "Нет фотографий с координатами",
+        description: "Загрузите фотографии с координатами для проверки",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsCheckingAll(true);
+    setIsLoading(true);
+    
+    try {
+      // Создаем прогресс-бар
+      const total = photosWithCoords.length;
+      let processed = 0;
+      
+      // Функция обновления прогресса
+      const updateProgress = (current: number, photoName: string) => {
+        const progressPercent = Math.round((current / total) * 100);
+        const progressElement = document.getElementById('batch-progress-bar');
+        const progressTextElement = document.getElementById('progress-text');
+        
+        if (progressElement) {
+          progressElement.style.width = `${progressPercent}%`;
+          progressElement.setAttribute('aria-valuenow', progressPercent.toString());
+        }
+        
+        if (progressTextElement) {
+          progressTextElement.textContent = `Проверено ${current} из ${total}: ${photoName}`;
+        }
+      };
+      
+      // Создаем новую Map для результатов
+      const results = new Map<number, NearbyObject[]>();
+      
+      // Функция для параллельной проверки фотографий
+      async function checkPhotosInParallel(batch: Photo[]): Promise<Map<number, NearbyObject[]>> {
+        console.log(`Начало параллельной проверки безопасности для ${batch.length} фотографий...`);
+        
+        // Создаем массив промисов для параллельного выполнения
+        const promises = batch.map(async (photo) => {
+          if (!photo.lat || !photo.lon) return null;
+          
+          try {
+            console.log(`Проверка безопасности для фото ${photo.name}...`);
+            const { checkLocationSafety } = await import('./SafetyCheckService');
+            const result = await checkLocationSafety(photo);
+            
+            // Возвращаем результат для каждой фотографии
+            return { 
+              photoId: photo.id, 
+              objects: result.restrictedObjects || [],
+              photo: photo
+            };
+          } catch (error) {
+            console.error(`Ошибка при проверке фото ${photo.name}:`, error);
+            return { photoId: photo.id, objects: [], photo: photo };
+          }
+        });
+        
+        // Ожидаем завершения всех промисов
+        const results = await Promise.all(promises);
+        
+        // Создаем Map с результатами
+        const resultMap = new Map<number, NearbyObject[]>();
+        
+        // Обрабатываем результаты
+        let successCount = 0;
+        for (const result of results) {
+          if (result) {
+            resultMap.set(result.photoId, result.objects);
+            
+            // Устанавливаем флаг запрещенных объектов для индикации на карте
+            result.photo.restrictedObjectsNearby = result.objects.length > 0;
+            result.photo.nearbyObjectsCount = result.objects.length;
+            
+            // Если это первое фото и не выбрано другое, автоматически выбираем его
+            if (successCount === 0 && !selectedPhoto) {
+              selectPhoto(result.photo);
+              setSortedObjects(result.objects);
+            }
+            
+            successCount++;
+            processed++;
+            updateProgress(processed, result.photo.name);
+          }
+        }
+        
+        console.log(`Завершение параллельной проверки безопасности: успешно ${successCount} из ${batch.length}`);
+        return resultMap;
+      }
+      
+      // Запускаем проверку для всех фотографий
+      const batchResults = await checkPhotosInParallel(photosWithCoords);
+      
+      // Обновляем состояние с результатами
+      batchResults.forEach((value, key) => {
+        results.set(key, value);
+      });
+      
+      // Обновляем общее состояние
+      const mergedMap = new Map(checkedPhotos);
+      results.forEach((value, key) => {
+        mergedMap.set(key, value);
+      });
+      
+      // Обновляем состояние компонента
+      setCheckedPhotos(mergedMap);
+      
+      // Если есть выбранное фото, обновляем информацию о нем
+      if (selectedPhotoId && results.has(selectedPhotoId)) {
+        setSortedObjects(results.get(selectedPhotoId) || []);
+      }
+      
+      toast({
+        title: "Проверка завершена",
+        description: `Проверено ${photosWithCoords.length} фотографий`,
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error('Ошибка при автоматической проверке фотографий:', error);
+      toast({
+        title: "Ошибка проверки",
+        description: "Произошла ошибка при проверке фотографий",
+        variant: "destructive"
+      });
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false);
+        setIsCheckingAll(false);
+      }, 500);
+    }
   };
   
   // Определение общего статуса безопасности
