@@ -131,9 +131,22 @@ export default function SafetyCheckPanel({
       newCheckedPhotos.set(photo.id, objects);
       setCheckedPhotos(newCheckedPhotos);
       
+      // Устанавливаем флаг запрещенных объектов для индикации на карте
+      photo.restrictedObjectsNearby = objects.length > 0;
+      photo.nearbyObjectsCount = objects.length;
+      
       // Выбираем эту фотографию для отображения результатов
       selectPhoto(photo);
       setSortedObjects(objects);
+      
+      // Обновляем маркеры на карте, чтобы показать новый статус
+      if (window.mapInstance) {
+        setTimeout(() => {
+          if (window.mapInstance && window.mapInstance.invalidateSize) {
+            window.mapInstance.invalidateSize();
+          }
+        }, 100);
+      }
       
       // Выводим предупреждение и количество найденных объектов
       if (result.warningMessage) {
@@ -195,6 +208,10 @@ export default function SafetyCheckPanel({
           
           // Сохраняем результаты
           results.set(photo.id, objects);
+          
+          // Устанавливаем флаг запрещенных объектов для индикации на карте
+          photo.restrictedObjectsNearby = objects.length > 0;
+          photo.nearbyObjectsCount = objects.length;
           
           console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
           

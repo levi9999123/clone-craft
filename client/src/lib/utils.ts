@@ -143,4 +143,5 @@ export interface Photo {
   hasNearbyObjects?: boolean;
   nearbyObjectsCount?: number;
   isVeryClose?: boolean; // Флаг для фото, находящихся в пределах 25 метров
+  restrictedObjectsNearby?: boolean; // Флаг для фото, находящихся ближе 50 метров от запрещенных объектов
 }
