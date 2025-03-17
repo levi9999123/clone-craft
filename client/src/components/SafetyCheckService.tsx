@@ -1,31 +1,7 @@
 import { Photo } from '@/lib/utils';
 
-// Кэш для хранения результатов проверки безопасности
-interface SafetyCache {
-  [key: string]: {
-    result: SafetyCheckResult;
-    timestamp: number;
-  };
-}
-
-// Кэш проверок безопасности с тайм-аутом 1 час
-const safetyCheckCache: SafetyCache = {};
-const CACHE_TTL = 60 * 60 * 1000; // 1 час
-
-// Генерация ключа кэша на основе координат
-function getCacheKey(lat: number, lon: number, radius: number = 200): string {
-  return `${lat.toFixed(6)},${lon.toFixed(6)},${radius}`;
-}
-
-// Функция очистки устаревших записей в кэше
-function cleanupCache(): void {
-  const now = Date.now();
-  Object.keys(safetyCheckCache).forEach(key => {
-    if (now - safetyCheckCache[key].timestamp > CACHE_TTL) {
-      delete safetyCheckCache[key];
-    }
-  });
-}
+// Мы больше не используем кэширование, чтобы гарантировать получение актуальных данных при каждом запросе
+// Постоянно используем радиус поиска в 100 метров
 
 // Список типов запрещенных объектов с различными вариантами написания и типами
 export const RESTRICTED_OBJECT_TYPES = [
@@ -198,18 +174,9 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
   }
 
   try {
-    // Очищаем устаревшие записи в кэше
-    cleanupCache();
-    
-    // Проверяем кэш перед API-запросом
-    const cacheKey = getCacheKey(photo.lat, photo.lon);
-    if (safetyCheckCache[cacheKey]) {
-      console.log(`Найден результат в кэше для координат (${photo.lat}, ${photo.lon})`);
-      return safetyCheckCache[cacheKey].result;
-    }
-    
-    // Используем API для получения объектов поблизости
-    const objects = await fetchNearbyObjects(photo.lat, photo.lon);
+    // Используем API для получения объектов поблизости с радиусом 100 метров
+    // Всегда используем новые данные без кэширования
+    const objects = await fetchNearbyObjects(photo.lat, photo.lon, 100);
     console.log(`Обнаружено объектов вблизи: ${objects.length}`);
     
     // Проверяем, есть ли объекты в опасной близости
@@ -223,12 +190,6 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
         : objects.length > 0
           ? `Все объекты на безопасном расстоянии (более ${MINIMUM_SAFE_DISTANCE} метров)` 
           : "Запрещенных объектов поблизости не обнаружено"
-    };
-    
-    // Сохраняем результат в кэш
-    safetyCheckCache[cacheKey] = {
-      result,
-      timestamp: Date.now()
     };
     
     return result;
@@ -246,21 +207,15 @@ export async function checkLocationSafety(photo: Photo): Promise<SafetyCheckResu
 const nearbyObjectsCache: {[key: string]: {objects: NearbyObject[], timestamp: number}} = {};
 
 // Функция получения объектов вблизи заданной точки
-export async function fetchNearbyObjects(lat: number, lon: number, radius: number = 200): Promise<NearbyObject[]> {
+// Теперь всегда используем свежие данные без кэширования
+export async function fetchNearbyObjects(lat: number, lon: number, radius: number = 100): Promise<NearbyObject[]> {
   if (!lat || !lon) return [];
   
   try {
-    // Проверяем кэш перед API-запросом
-    const cacheKey = getCacheKey(lat, lon, radius);
-    if (nearbyObjectsCache[cacheKey]) {
-      console.log(`Найдены объекты в кэше для координат (${lat}, ${lon})`);
-      return nearbyObjectsCache[cacheKey].objects;
-    }
-    
     // Импортируем функцию из файла overpassService
     const { checkLocationSafety } = await import('../services/overpassService');
     
-    // Получаем данные из Overpass API
+    // Получаем данные из Overpass API с фиксированным радиусом 100 метров
     const objects = await checkLocationSafety(lat, lon, radius);
     
     // Если у объектов нет расстояния, вычисляем его
@@ -273,30 +228,12 @@ export async function fetchNearbyObjects(lat: number, lon: number, radius: numbe
     // Сортируем объекты по расстоянию (ближайшие в начале)
     const sortedObjects = objects.sort((a, b) => a.distance - b.distance);
     
-    // Сохраняем результат в кэш
-    nearbyObjectsCache[cacheKey] = {
-      objects: sortedObjects,
-      timestamp: Date.now()
-    };
-    
-    // Очистка кэша - удаляем старые записи
-    cleanupNearbyObjectsCache();
-    
+    // Всегда возвращаем свежие данные, без сохранения в кэш
     return sortedObjects;
   } catch (error) {
     console.error("Ошибка при получении объектов поблизости:", error);
     return [];
   }
-}
-
-// Очистка кэша объектов поблизости
-function cleanupNearbyObjectsCache() {
-  const now = Date.now();
-  Object.keys(nearbyObjectsCache).forEach(key => {
-    if (now - nearbyObjectsCache[key].timestamp > CACHE_TTL) {
-      delete nearbyObjectsCache[key];
-    }
-  });
 }
 
 // Функция обогащения списка объектов информацией о типе
