@@ -298,53 +298,12 @@ export default function MapView({
     setDuplicateGroups(duplicates);
   };
 
-  // Функция для нахождения ближайшего соседа (для построения маршрута)
-  const findNearestNeighborRoute = (points: {lat: number, lon: number}[]): {lat: number, lon: number}[] => {
+  // Функция для построения маршрута по порядку фотографий (от 1 к 2, от 2 к 3 и т.д.)
+  const buildSequentialRoute = (points: {lat: number, lon: number, id: number}[]): {lat: number, lon: number, id: number}[] => {
     if (points.length <= 1) return points;
     
-    const visited = new Set<number>();
-    const route: {lat: number, lon: number}[] = [];
-    
-    // Начинаем с первой точки
-    let currentIndex = 0;
-    route.push(points[currentIndex]);
-    visited.add(currentIndex);
-    
-    // Пока не посетим все точки
-    while (visited.size < points.length) {
-      let nearestIndex = -1;
-      let minDistance = Infinity;
-      
-      // Находим ближайшую непосещенную точку
-      for (let i = 0; i < points.length; i++) {
-        if (visited.has(i)) continue;
-        
-        const currentPoint = points[currentIndex];
-        const candidatePoint = points[i];
-        
-        // Вычисляем расстояние
-        const distance = Math.sqrt(
-          Math.pow(currentPoint.lat - candidatePoint.lat, 2) + 
-          Math.pow(currentPoint.lon - candidatePoint.lon, 2)
-        );
-        
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearestIndex = i;
-        }
-      }
-      
-      if (nearestIndex !== -1) {
-        currentIndex = nearestIndex;
-        route.push(points[nearestIndex]);
-        visited.add(nearestIndex);
-      } else {
-        // Если не нашли ближайшей точки, прерываем цикл
-        break;
-      }
-    }
-    
-    return route;
+    // Сортируем точки по ID - предполагается, что ID отражает порядок добавления фотографий
+    return [...points].sort((a, b) => a.id - b.id);
   };
   
   // Функция для очистки маршрутных линий
@@ -393,12 +352,12 @@ export default function MapView({
     
     if (photoPoints.length < 2) return;
     
-    // Находим оптимальный маршрут "ближайший сосед"
-    const routePoints = findNearestNeighborRoute(photoPoints);
+    // Строим маршрут по порядку загрузки фотографий (1->2->3->4)
+    const routePoints = buildSequentialRoute(photoPoints);
     
     // Рисуем линии маршрута
     const polyline = L.polyline(
-      routePoints.map(p => [p.lat, p.lon]), 
+      routePoints.map((p: {lat: number, lon: number, id: number}) => [p.lat, p.lon]), 
       {
         color: '#3388ff',
         weight: 3,
