@@ -511,14 +511,30 @@ export default function SafetyCheckPanel({
       
       {/* Модальное окно выбора фотографий для проверки */}
       {isCheckModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50">
-          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[1050] flex items-center justify-center" 
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(2px)'
+          }}
+          onClick={(e) => {
+            // Закрываем модальное окно по клику на фон
+            if (e.target === e.currentTarget) {
+              setIsCheckModalOpen(false);
+              setShowSelectMode(false);
+            }
+          }}
+        >
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            style={{
+              border: '1px solid var(--border)'
+            }}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold">Выберите фотографии для проверки</h3>
               <button 
                 onClick={() => {
                   setIsCheckModalOpen(false);
-                  setShowSelectMode(false); 
+                  setShowSelectMode(false);
                 }}
                 className="text-gray-500 hover:text-gray-700 transition-colors"
               >
@@ -526,17 +542,21 @@ export default function SafetyCheckPanel({
               </button>
             </div>
 
-            <div className="mb-4 flex space-x-3">
+            <div className="mb-4 flex flex-wrap gap-2">
               <Button 
                 variant="outline" 
                 onClick={selectAllPhotos}
+                size="sm"
               >
+                <i className="fas fa-check-square mr-1"></i>
                 Выбрать все
               </Button>
               <Button 
                 variant="outline" 
                 onClick={deselectAllPhotos}
+                size="sm"
               >
+                <i className="fas fa-square mr-1"></i>
                 Снять выделение
               </Button>
               <div className="flex-grow"></div>
@@ -546,24 +566,28 @@ export default function SafetyCheckPanel({
                   setIsCheckModalOpen(false);
                   setShowSelectMode(false);
                 }}
+                size="sm"
               >
+                <i className="fas fa-times mr-1"></i>
                 Отмена
               </Button>
               <Button 
                 variant="default" 
                 onClick={checkSelectedPhotos}
                 disabled={selectedPhotoIds.size === 0}
+                size="sm"
               >
+                <i className="fas fa-check mr-1"></i>
                 Проверить выбранные ({selectedPhotoIds.size})
               </Button>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-4">
               {photosWithCoords.map(photo => (
                 <div 
                   key={photo.id}
-                  className={`relative rounded overflow-hidden cursor-pointer border-2 
-                    ${selectedPhotoIds.has(photo.id) ? 'border-primary' : 'border-transparent'}`}
+                  className={`relative rounded-md overflow-hidden cursor-pointer border-2 transition-all
+                    ${selectedPhotoIds.has(photo.id) ? 'border-primary shadow-md scale-[1.02]' : 'border-transparent'}`}
                   onClick={() => togglePhotoSelection(photo.id)}
                 >
                   {photo.dataUrl ? (
@@ -581,12 +605,12 @@ export default function SafetyCheckPanel({
                   <div className="absolute top-2 left-2">
                     <Checkbox 
                       checked={selectedPhotoIds.has(photo.id)}
-                      className="bg-white border-2 border-primary rounded"
+                      className="bg-white border-2 border-primary rounded-sm"
                       onCheckedChange={() => togglePhotoSelection(photo.id)}
                     />
                   </div>
                   
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-1 text-xs truncate">
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-1 text-xs truncate">
                     {photo.name}
                   </div>
                 </div>
