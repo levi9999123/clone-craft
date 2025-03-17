@@ -159,23 +159,36 @@ export default function SafetyCheckPanel({
           selectPhoto(photoToCheck);
           setSelectedPhotoId(photoToCheck.id);
           
+          // Сохраняем отчет в localStorage для открытия в отдельной вкладке
+          // Преобразуем Map в массив для сохранения в JSON
+          const reportData = {
+            photos: photosWithCoords,
+            objectsEntries: Array.from(newCheckedPhotos.entries()),
+            date: new Date().toISOString()
+          };
+          
+          localStorage.setItem('safetyCheckReport', JSON.stringify(reportData));
+          
+          // Открываем новую вкладку с отчетом
+          window.open('/report', '_blank');
+          
           // Уведомление
           if (sortedObjs.some(obj => !isSafeDistance(obj.distance))) {
             toast({
               title: "Внимание! Запрещенные объекты рядом",
-              description: `Найдено ${sortedObjs.length} объектов, есть нарушения безопасного расстояния`,
+              description: `Найдено ${sortedObjs.length} объектов, есть нарушения безопасного расстояния. Открыт подробный отчет.`,
               variant: "destructive"
             });
           } else if (sortedObjs.length > 0) {
             toast({
               title: "Объекты найдены",
-              description: `Найдено ${sortedObjs.length} объектов, все на безопасном расстоянии`,
+              description: `Найдено ${sortedObjs.length} объектов, все на безопасном расстоянии. Открыт подробный отчет.`,
               variant: "default"
             });
           } else {
             toast({
               title: "Проверка завершена",
-              description: "Запрещенных объектов поблизости не найдено",
+              description: "Запрещенных объектов поблизости не найдено. Открыт подробный отчет.",
               variant: "default"
             });
           }
@@ -184,9 +197,19 @@ export default function SafetyCheckPanel({
           setSortedObjects([]);
           removePolylines();
           
+          // Сохраняем пустой отчет и открываем вкладку
+          const reportData = {
+            photos: photosWithCoords,
+            objectsEntries: Array.from(checkedPhotos.entries()),
+            date: new Date().toISOString()
+          };
+          
+          localStorage.setItem('safetyCheckReport', JSON.stringify(reportData));
+          window.open('/report', '_blank');
+          
           toast({
             title: "Проверка завершена",
-            description: "Запрещенных объектов поблизости не найдено",
+            description: "Запрещенных объектов поблизости не найдено. Открыт подробный отчет.",
             variant: "default"
           });
         }
@@ -319,7 +342,7 @@ export default function SafetyCheckPanel({
         <ol className="list-decimal pl-5 space-y-1">
           <li>Загрузите фотографии с координатами</li>
           <li>Нажмите на кнопку "Выполнить проверку"</li>
-          <li>Результаты появятся в таблице ниже</li>
+          <li>Результаты появятся в таблице и откроются в новой вкладке с подробным отчетом</li>
         </ol>
       </div>
     </div>
