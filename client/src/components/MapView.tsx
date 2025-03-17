@@ -4,6 +4,9 @@ import { findDuplicates } from '@/lib/utils';
 import MapSettings from './MapSettings';
 import SearchPanel from './SearchPanel';
 import TooltipWrapper from './TooltipWrapper';
+import HelpModal from './modals/HelpModal';
+import ExportPanel from './ExportPanel';
+import RouteStatsPanel from './RouteStatsPanel';
 
 interface MapViewProps {
   onToggleNearbyPanel: () => void;
@@ -29,8 +32,24 @@ export default function MapView({
   const [mapInitialized, setMapInitialized] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [useAnimation, setUseAnimation] = useState(true);
   const [useCluster, setUseCluster] = useState(true);
+  
+  // Проверяем первый запуск приложения
+  useEffect(() => {
+    const hasSeenHelp = localStorage.getItem('geo-photo-analyzer-help-shown');
+    if (!hasSeenHelp) {
+      // Таймаут, чтобы дать приложению загрузиться перед показом помощи
+      const timer = setTimeout(() => {
+        setIsHelpOpen(true);
+        localStorage.setItem('geo-photo-analyzer-help-shown', 'true');
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   
   // Функция для динамической загрузки Leaflet
   const loadLeafletScripts = () => {
