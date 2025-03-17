@@ -328,13 +328,63 @@ export default function MapView({
           selectPhoto(photo);
         });
         
+        // Создаем уникальный ID для маркера, чтобы можно было добавить событие копирования
+        const markerId = `marker-${photo.id}`;
+        
         marker.bindPopup(`
           <div style="text-align: center;">
             <strong>${photo.name}</strong><br>
-            <span>${photo.lat.toFixed(6)}, ${photo.lon.toFixed(6)}</span>
-            ${photo.dataUrl ? `<br><img src="${photo.dataUrl}" alt="${photo.name}" style="max-width: 100px; max-height: 100px; margin-top: 5px; border-radius: 3px;">` : ''}
+            <div style="display: flex; align-items: center; justify-content: center; margin: 4px 0;">
+              <span>${photo.lat.toFixed(6)}, ${photo.lon.toFixed(6)}</span>
+              <button id="${markerId}" title="Скопировать координаты" style="
+                margin-left: 6px;
+                background-color: var(--primary);
+                color: white;
+                border: none;
+                border-radius: 3px;
+                width: 22px;
+                height: 22px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+              ">
+                <i class="fas fa-copy" style="font-size: 12px;"></i>
+              </button>
+              <span id="${markerId}-copied" style="
+                color: green;
+                margin-left: 4px;
+                font-weight: bold;
+                display: none;
+              ">✓</span>
+            </div>
+            ${photo.dataUrl ? `<img src="${photo.dataUrl}" alt="${photo.name}" style="max-width: 100px; max-height: 100px; margin-top: 5px; border-radius: 3px;">` : ''}
           </div>
         `);
+        
+        // Добавляем обработчик события открытия попапа
+        marker.on('popupopen', () => {
+          setTimeout(() => {
+            const copyButton = document.getElementById(markerId);
+            const copiedIndicator = document.getElementById(`${markerId}-copied`);
+            
+            if (copyButton && copiedIndicator) {
+              copyButton.addEventListener('click', () => {
+                const coordText = `${photo.lat}, ${photo.lon}`;
+                navigator.clipboard.writeText(coordText)
+                  .then(() => {
+                    copiedIndicator.style.display = 'inline';
+                    setTimeout(() => {
+                      copiedIndicator.style.display = 'none';
+                    }, 2000);
+                  })
+                  .catch(err => {
+                    console.error('Не удалось скопировать координаты:', err);
+                  });
+              });
+            }
+          }, 100); // Небольшая задержка для уверенности, что DOM обновлен
+        });
         
         markersRef.current?.addLayer(marker);
         bounds.extend([photo.lat, photo.lon]);
@@ -418,7 +468,7 @@ export default function MapView({
           </button>
         </TooltipWrapper>
         
-        <TooltipWrapper text="Проверка безопасности местоположения" position="bottom">
+        <TooltipWrapper text="Проверка запрещенных объектов поблизости" position="bottom">
           <button 
             className="px-3 py-2 rounded shadow-lg transition-colors font-bold text-white"
             style={{ 
@@ -430,7 +480,7 @@ export default function MapView({
             }}
             onClick={onToggleSafetyPanel}
           >
-            <i className="fas fa-shield-alt mr-1"></i> Безопасность
+            <i className="fas fa-shield-alt mr-1"></i> Проверка объектов
           </button>
         </TooltipWrapper>
         

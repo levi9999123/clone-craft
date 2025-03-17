@@ -35,23 +35,25 @@ export default function Home() {
   // Эффект для проверки безопасности местоположения
   useEffect(() => {
     const checkSafety = async () => {
-      if (selectedPhoto && selectedPhoto.lat && selectedPhoto.lon) {
-        // Показываем индикатор загрузки
-        showLoading('Проверка безопасности местоположения...', 1);
-        
-        try {
-          // Получаем список близлежащих запрещенных объектов
-          const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon);
-          setRestrictedObjects(objects);
+      if (selectedPhoto && selectedPhoto.lat !== null && selectedPhoto.lon !== null) {
+        if (isPanelVisible === 'safety') {
+          // Показываем индикатор загрузки только если панель открыта
+          showLoading('Проверка безопасности местоположения...', 1);
           
-          // Если найдены объекты, автоматически открываем панель проверки
-          if (objects.length > 0) {
-            setIsPanelVisible('safety');
+          try {
+            // Получаем список близлежащих запрещенных объектов
+            const objects = await checkLocationSafety(selectedPhoto.lat, selectedPhoto.lon);
+            setRestrictedObjects(objects);
+            
+            console.log(`Обнаружено объектов вблизи: ${objects.length}`);
+          } catch (error) {
+            console.error('Ошибка при проверке безопасности:', error);
+          } finally {
+            hideLoading();
           }
-        } catch (error) {
-          console.error('Ошибка при проверке безопасности:', error);
-        } finally {
-          hideLoading();
+        } else {
+          // Очищаем результаты, если панель закрыта
+          setRestrictedObjects([]);
         }
       } else {
         // Если фото не выбрано или у него нет координат, сбрасываем список объектов
@@ -60,7 +62,7 @@ export default function Home() {
     };
     
     checkSafety();
-  }, [selectedPhoto]);
+  }, [selectedPhoto, isPanelVisible]);
 
   const togglePanel = (panelType: 'nearby' | 'duplicate' | 'safety') => {
     setIsPanelVisible(current => current === panelType ? null : panelType);
