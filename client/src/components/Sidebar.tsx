@@ -158,7 +158,13 @@ export default function Sidebar({
       <div className="px-4 space-y-2">
         <button
           id="load-folder-btn"
-          className="w-full bg-accent text-white py-2 px-4 rounded font-medium hover:bg-orange-600 transition-colors shadow-sm"
+          className="w-full font-bold text-white py-2 px-4 rounded hover:bg-orange-600 transition-colors shadow-md"
+          style={{ 
+            backgroundColor: '#ff9500', 
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', 
+            border: '1px solid rgba(0,0,0,0.1)',
+            textShadow: '0 1px 1px rgba(0,0,0,0.2)'
+          }}
           onClick={handleFolderUpload}
         >
           <i className="fas fa-folder-open mr-2"></i>Загрузить папку
@@ -175,7 +181,13 @@ export default function Sidebar({
         
         <button
           id="load-urls-btn"
-          className="w-full bg-accent text-white py-2 px-4 rounded font-medium hover:bg-orange-600 transition-colors shadow-sm"
+          className="w-full font-bold text-white py-2 px-4 rounded hover:bg-orange-600 transition-colors shadow-md"
+          style={{ 
+            backgroundColor: '#ff9500', 
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', 
+            border: '1px solid rgba(0,0,0,0.1)',
+            textShadow: '0 1px 1px rgba(0,0,0,0.2)'
+          }}
           onClick={onOpenUrlModal}
         >
           <i className="fas fa-link mr-2"></i>Загрузить по URL
@@ -183,7 +195,13 @@ export default function Sidebar({
         
         <button
           id="save-coordinates"
-          className="w-full bg-accent text-white py-2 px-4 rounded font-medium hover:bg-orange-600 transition-colors shadow-sm"
+          className="w-full font-bold text-white py-2 px-4 rounded hover:bg-orange-600 transition-colors shadow-md"
+          style={{ 
+            backgroundColor: '#ff9500', 
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', 
+            border: '1px solid rgba(0,0,0,0.1)',
+            textShadow: '0 1px 1px rgba(0,0,0,0.2)'
+          }}
           onClick={onOpenCoordsModal}
         >
           <i className="fas fa-save mr-2"></i>Сохранить координаты
@@ -191,7 +209,13 @@ export default function Sidebar({
         
         <button
           id="calc-distance-btn"
-          className="w-full bg-accent text-white py-2 px-4 rounded font-medium hover:bg-orange-600 transition-colors shadow-sm"
+          className="w-full font-bold text-white py-2 px-4 rounded hover:bg-orange-600 transition-colors shadow-md"
+          style={{ 
+            backgroundColor: '#ff9500', 
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', 
+            border: '1px solid rgba(0,0,0,0.1)',
+            textShadow: '0 1px 1px rgba(0,0,0,0.2)'
+          }}
           onClick={handleCalculateDistance}
         >
           <i className="fas fa-ruler mr-2"></i>Вычислить расстояние
@@ -229,7 +253,13 @@ export default function Sidebar({
             </select>
             
             <button
-              className="w-full bg-primary text-white py-2 px-4 rounded font-medium hover:bg-blue-700 transition-colors shadow-sm mt-2"
+              className="w-full font-bold text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors shadow-md mt-2"
+              style={{ 
+                backgroundColor: '#007bff', 
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)', 
+                border: '1px solid rgba(0,0,0,0.1)',
+                textShadow: '0 1px 1px rgba(0,0,0,0.2)'
+              }}
               onClick={computeDistance}
               disabled={!point1 || !point2}
             >
@@ -291,7 +321,13 @@ export default function Sidebar({
       
       <div className="p-4 border-t border-gray-200">
         <button
-          className="clear-btn w-full bg-error text-white py-2 px-4 rounded font-medium hover:bg-red-700 transition-colors shadow-sm"
+          className="clear-btn w-full font-bold text-white py-2 px-4 rounded hover:bg-red-700 transition-colors shadow-md"
+          style={{ 
+            backgroundColor: '#dc3545', 
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', 
+            border: '1px solid rgba(0,0,0,0.1)',
+            textShadow: '0 1px 1px rgba(0,0,0,0.3)'
+          }}
           onClick={() => {
             if (confirm('Вы уверены, что хотите удалить все фотографии?')) {
               clearPhotos();
