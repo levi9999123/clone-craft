@@ -115,4 +115,6 @@ export interface Photo {
   lon: null | number;
   dataUrl?: string;
   distance?: number;
+  hasNearbyObjects?: boolean;
+  nearbyObjectsCount?: number;
 }
