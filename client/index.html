@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>G.P.S ANALYZE</title>
+    <meta name="description" content="Анализируйте и визуализируйте фотографии с координатами на интерактивной карте. Загружайте файлы или папки, находите дубликаты и исследуйте геоданные с точностью. Попробуйте сейчас!" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet JS Libraries -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" integrity="sha512-mCdfEqWxsq4LHALWbP0GGD/g5QX2T7kIU/fngKhUsbREKxLZbGzZRbJm8j7GlZGbjKJK7VB3GE1yoZJtKKzXzg==" crossorigin="anonymous"></script>
+    <!-- EXIF.js for extracting image metadata -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+    <style>
+      :root {
+        --primary: #007bff;
+        --accent: #ff9500;
+        --success: #28a745;
+        --error: #dc3545;
+        --bg: #f8f9fa;
+        --sidebar-bg: #ffffff;
+        --photo-bg: #ffffff;
+        --modal-bg: #ffffff;
+        --text: #212529;
+        --border: #dee2e6;
+        --highlight: #e9f5ff;
+      }
+      body {
+        margin: 0;
+        font-family: 'Roboto', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        overflow-x: hidden;
+        position: relative;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+      .leaflet-container {
+        background-color: var(--bg);
+      }
+      .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+        background-color: rgba(0, 123, 255, 0.6);
+      }
+      .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+        background-color: rgba(0, 123, 255, 0.8);
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
