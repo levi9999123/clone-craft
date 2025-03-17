@@ -3,6 +3,8 @@ import { usePhotoContext } from '@/context/PhotoContext';
 import { NearbyObject, isSafeDistance, MINIMUM_SAFE_DISTANCE } from './SafetyCheckService';
 import { checkLocationSafety } from '@/services/overpassService';
 import { Photo } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface SafetyCheckPanelProps {
   isOpen: boolean;
@@ -21,6 +23,9 @@ export default function SafetyCheckPanel({
   const [checkedPhotos, setCheckedPhotos] = useState<Map<number, NearbyObject[]>>(new Map());
   const [selectedPhotoId, setSelectedPhotoId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSelectMode, setShowSelectMode] = useState(false);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<number>>(new Set());
+  const [isCheckModalOpen, setIsCheckModalOpen] = useState(false);
   
   // Отслеживаем изменение выбранной фотографии
   useEffect(() => {
@@ -113,7 +118,6 @@ export default function SafetyCheckPanel({
     
     try {
       // Используем улучшенную проверку безопасности
-      // Импортируем функцию из SafetyCheckService для проверки с учетом границ объектов
       const { checkLocationSafety: checkPhotoSafety } = await import('./SafetyCheckService');
       
       // Запускаем проверку, передавая фото целиком
@@ -143,22 +147,23 @@ export default function SafetyCheckPanel({
     }
   };
   
-  // Проверка всех фотографий с индикатором прогресса и учетом границ объектов
-  const checkAllPhotos = async () => {
-    // Фильтруем только фотографии с координатами
-    const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
+  // Функция для проверки нескольких выбранных фотографий
+  const checkSelectedPhotos = async () => {
+    // Получаем выбранные фотографии
+    const selectedPhotos = photos.filter(p => 
+      p.lat !== null && p.lon !== null && selectedPhotoIds.has(p.id)
+    );
     
-    if (photosWithCoords.length === 0) return;
+    if (selectedPhotos.length === 0) return;
     
     setIsCheckingAll(true);
     setIsLoading(true);
     
     try {
-      // Получаем улучшенную реализацию функции проверки
       const { checkLocationSafety: checkPhotoSafety } = await import('./SafetyCheckService');
       
       const results = new Map<number, NearbyObject[]>();
-      const total = photosWithCoords.length;
+      const total = selectedPhotos.length;
       
       // Прогресс загрузки
       const updateProgress = (current: number, photoName: string) => {
@@ -176,17 +181,15 @@ export default function SafetyCheckPanel({
         }
       };
       
-      // Проверяем каждую фотографию последовательно с задержкой
-      // чтобы не перегружать API Overpass
-      for (let i = 0; i < photosWithCoords.length; i++) {
-        const photo = photosWithCoords[i];
+      // Проверяем каждую выбранную фотографию последовательно
+      for (let i = 0; i < selectedPhotos.length; i++) {
+        const photo = selectedPhotos[i];
         if (!photo.lat || !photo.lon) continue;
         
         // Обновляем индикатор прогресса
         updateProgress(i, photo.name);
         
         try {
-          // Используем новую функцию проверки, которая учитывает границы объектов
           const result = await checkPhotoSafety(photo);
           const objects = result.restrictedObjects || [];
           
@@ -195,13 +198,12 @@ export default function SafetyCheckPanel({
           
           console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
           
-          // Добавляем задержку 500мс между запросами, чтобы не перегружать Overpass API
-          if (i < photosWithCoords.length - 1) {
+          // Добавляем задержку между запросами
+          if (i < selectedPhotos.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 500));
           }
         } catch (error) {
           console.error(`Ошибка при проверке фото ${photo.name}:`, error);
-          // Продолжаем с другими фото даже при ошибке с текущим
           results.set(photo.id, []);
         }
       }
@@ -210,22 +212,61 @@ export default function SafetyCheckPanel({
       updateProgress(total, "завершено");
       
       // Обновляем состояние
-      setCheckedPhotos(results);
+      const mergedMap = new Map(checkedPhotos);
+      results.forEach((value, key) => {
+        mergedMap.set(key, value);
+      });
+      setCheckedPhotos(mergedMap);
       
       // Если есть выбранное фото, обновляем список объектов
       if (selectedPhotoId && results.has(selectedPhotoId)) {
         setSortedObjects(results.get(selectedPhotoId) || []);
       }
       
+      // Закрываем режим выбора и сбрасываем выбранные фото
+      setShowSelectMode(false);
+      setSelectedPhotoIds(new Set());
+      setIsCheckModalOpen(false);
+      
     } catch (error) {
-      console.error("Ошибка при проверке всех фотографий:", error);
+      console.error("Ошибка при проверке выбранных фотографий:", error);
     } finally {
-      // Короткая задержка перед скрытием прогресс-бара
       setTimeout(() => {
         setIsLoading(false);
         setIsCheckingAll(false);
       }, 500);
     }
+  };
+
+  // Переключение выбора фотографии
+  const togglePhotoSelection = (photoId: number) => {
+    const newSelection = new Set(selectedPhotoIds);
+    if (newSelection.has(photoId)) {
+      newSelection.delete(photoId);
+    } else {
+      newSelection.add(photoId);
+    }
+    setSelectedPhotoIds(newSelection);
+  };
+
+  // Выбрать все фотографии
+  const selectAllPhotos = () => {
+    const photosWithCoords = photos.filter(p => p.lat !== null && p.lon !== null);
+    const allIds = new Set(photosWithCoords.map(p => p.id));
+    setSelectedPhotoIds(allIds);
+  };
+
+  // Снять выбор со всех фотографий
+  const deselectAllPhotos = () => {
+    setSelectedPhotoIds(new Set());
+  };
+
+  // Проверка всех фотографий с индикатором прогресса и учетом границ объектов
+  const checkAllPhotos = async () => {
+    // Показываем модальное окно с выбором фотографий вместо немедленной проверки
+    setIsCheckModalOpen(true);
+    setShowSelectMode(true);
+    selectAllPhotos(); // По умолчанию выбираем все фотографии
   };
   
   // Определение общего статуса безопасности
@@ -277,8 +318,9 @@ export default function SafetyCheckPanel({
       {/* Панель управления проверкой */}
       <div className="mb-4 p-3 rounded-lg border border-gray-200">
         <div className="flex justify-between mb-3">
-          <button 
-            className="safety-check-all-btn px-3 py-2 bg-primary text-white rounded shadow hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          <Button 
+            className="safety-check-all-btn"
+            variant="default"
             disabled={isLoading || photosWithCoords.length === 0}
             onClick={checkAllPhotos}
           >
@@ -290,14 +332,15 @@ export default function SafetyCheckPanel({
             ) : (
               <>
                 <i className="fas fa-shield-alt mr-2"></i>
-                <span>Проверить все фото</span>
+                <span>Выбрать фото</span>
               </>
             )}
-          </button>
+          </Button>
           
           {selectedPhoto && selectedPhoto.lat !== null && selectedPhoto.lon !== null && (
-            <button 
-              className="safety-check-current-btn px-3 py-2 bg-accent text-white rounded shadow hover:bg-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            <Button 
+              className="safety-check-current-btn"
+              variant="secondary"
               disabled={isLoading}
               onClick={() => checkSinglePhoto(selectedPhoto)}
             >
@@ -312,7 +355,7 @@ export default function SafetyCheckPanel({
                   <span>Проверить текущее</span>
                 </>
               )}
-            </button>
+            </Button>
           )}
         </div>
         
@@ -353,6 +396,93 @@ export default function SafetyCheckPanel({
           )}
         </div>
       </div>
+      
+      {/* Модальное окно выбора фотографий для проверки */}
+      {isCheckModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-5 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Выберите фотографии для проверки</h3>
+              <button 
+                onClick={() => {
+                  setIsCheckModalOpen(false);
+                  setShowSelectMode(false); 
+                }}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="mb-4 flex space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={selectAllPhotos}
+              >
+                Выбрать все
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={deselectAllPhotos}
+              >
+                Снять выделение
+              </Button>
+              <div className="flex-grow"></div>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  setIsCheckModalOpen(false);
+                  setShowSelectMode(false);
+                }}
+              >
+                Отмена
+              </Button>
+              <Button 
+                variant="default" 
+                onClick={checkSelectedPhotos}
+                disabled={selectedPhotoIds.size === 0}
+              >
+                Проверить выбранные ({selectedPhotoIds.size})
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {photosWithCoords.map(photo => (
+                <div 
+                  key={photo.id}
+                  className={`relative rounded overflow-hidden cursor-pointer border-2 
+                    ${selectedPhotoIds.has(photo.id) ? 'border-primary' : 'border-transparent'}`}
+                  onClick={() => togglePhotoSelection(photo.id)}
+                >
+                  {photo.dataUrl ? (
+                    <img 
+                      src={photo.dataUrl} 
+                      alt={photo.name} 
+                      className="w-full h-24 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-24 bg-gray-100 flex items-center justify-center">
+                      <i className="fas fa-image text-gray-400"></i>
+                    </div>
+                  )}
+                  
+                  <div className="absolute top-2 left-2">
+                    <Checkbox 
+                      checked={selectedPhotoIds.has(photo.id)}
+                      className="bg-white border-2 border-primary rounded"
+                      onCheckedChange={() => togglePhotoSelection(photo.id)}
+                    />
+                  </div>
+                  
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-1 text-xs truncate">
+                    {photo.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Список проверенных фотографий */}
       {checkedPhotos.size > 0 && (

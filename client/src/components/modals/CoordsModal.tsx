@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usePhotoContext } from '@/context/PhotoContext';
-import { formatCoordinates } from '@/lib/utils';
+import { formatCoordinates as formatUtilsCoordinates } from '@/lib/utils';
+import { formatCoordinates, CoordinateFormat } from '@/services/coordinateService';
 
 interface CoordsModalProps {
   onClose: () => void;
@@ -10,18 +11,24 @@ export default function CoordsModal({ onClose }: CoordsModalProps) {
   const { photos } = usePhotoContext();
   const [coordsText, setCoordsText] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [formatType, setFormatType] = useState<CoordinateFormat>(CoordinateFormat.DECIMAL);
   
+  // Генерация текста координат при изменении формата или фотографий
   useEffect(() => {
-    // Generate coordinates text
+    generateCoordinatesText(formatType);
+  }, [photos, formatType]);
+  
+  // Функция для генерации текста координат в выбранном формате
+  const generateCoordinatesText = (format: CoordinateFormat) => {
     const text = photos
       .filter(photo => photo.lat !== null && photo.lon !== null)
       .map(photo => {
-        return `${photo.name}: ${formatCoordinates(photo.lat, photo.lon)}`;
+        return `${photo.name}: ${formatCoordinates(photo.lat, photo.lon, format)}`;
       })
       .join('\n');
     
     setCoordsText(text || 'Нет фотографий с координатами');
-  }, [photos]);
+  };
   
   const handleCopy = () => {
     navigator.clipboard.writeText(coordsText)
