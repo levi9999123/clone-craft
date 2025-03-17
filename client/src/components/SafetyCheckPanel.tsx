@@ -135,6 +135,7 @@ export default function SafetyCheckPanel({
     try {
       // Запрос данных о запрещенных объектах поблизости
       console.log(`Запрос к Overpass API с координатами ${photo.lat}, ${photo.lon} и радиусом 100м`);
+      // Импортируем функцию только один раз для улучшения производительности
       const { checkLocationSafety } = await import('./SafetyCheckService');
       const result = await checkLocationSafety(photo);
       
@@ -259,14 +260,14 @@ export default function SafetyCheckPanel({
       const resultsMap = new Map<number, NearbyObject[]>();
       let completedCount = 0;
       
+      // Получаем функцию проверки один раз вне цикла
+      const { checkLocationSafety } = await import('./SafetyCheckService');
+      
       // Проверяем каждую фотографию
       for (const photo of photosToCheck) {
         if (!photo.lat || !photo.lon) continue;
         
         try {
-          // Получаем функцию проверки
-          const { checkLocationSafety } = await import('./SafetyCheckService');
-          
           // Запускаем проверку
           const result = await checkLocationSafety(photo);
           const nearbyObjects = result.restrictedObjects || [];
@@ -297,7 +298,7 @@ export default function SafetyCheckPanel({
       // Подсчитываем количество небезопасных фотографий
       let unsafeCount = 0;
       resultsMap.forEach((objects) => {
-        if (objects.some(obj => !isSafeDistance(obj.distance))) {
+        if (objects.some((obj: NearbyObject) => !isSafeDistance(obj.distance))) {
           unsafeCount++;
         }
       });
@@ -402,7 +403,7 @@ export default function SafetyCheckPanel({
   // Определение общего статуса безопасности
   const getPhotoSafetyStatus = (objects: NearbyObject[] | undefined) => {
     if (!objects || objects.length === 0) return 'safe';
-    return objects.some(obj => !isSafeDistance(obj.distance)) ? 'danger' : 'warning';
+    return objects.some((obj: NearbyObject) => !isSafeDistance(obj.distance)) ? 'danger' : 'warning';
   };
   
   // Определение текущего статуса безопасности выбранной фотографии
