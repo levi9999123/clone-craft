@@ -205,9 +205,13 @@ export default function SafetyCheckPanel({
     }
   };
   
-  // Функция для проверки нескольких выбранных фотографий
+  // Функция для проверки нескольких выбранных фотографий (больше не используется напрямую)
   const checkSelectedPhotos = async () => {
-    // Получаем выбранные фотографии
+    // Этот код больше не используется, так как мы убрали модальное окно выбора
+    // и теперь сразу проверяем все фотографии через checkAllPhotos
+    console.log("Используйте checkAllPhotos вместо этой функции");
+    
+    // Проверка ниже сохранена для совместимости
     const selectedPhotos = photos.filter(p => 
       p.lat !== null && p.lon !== null && selectedPhotoIds.has(p.id)
     );
@@ -397,27 +401,27 @@ export default function SafetyCheckPanel({
         }
       };
       
+      // Используем checkLocationSafety из импорта
+      const { checkLocationSafety } = await import('./SafetyCheckService');
+      
       // Проверяем каждую фотографию параллельно
       const results = await Promise.allSettled(
         photosWithCoords.map(async (photo, index) => {
           console.log(`Проверка безопасности для фото ${photo.name}...`);
           
           try {
-            // Получаем объекты поблизости от точки
-            const nearbyObjects = await fetchNearbyObjects(
-              photo.lat as number, 
-              photo.lon as number,
-              100 // радиус поиска 100м
-            );
+            // Проверяем фото с использованием SafetyCheckService
+            const result = await checkLocationSafety(photo);
+            const objects = result.restrictedObjects || [];
             
-            console.log(`Фото ${photo.name}: найдено ${nearbyObjects.length} объектов поблизости`);
+            console.log(`Фото ${photo.name}: найдено ${objects.length} объектов поблизости`);
             
             // Обновляем прогресс
             updateProgress(index + 1, photosWithCoords.length);
             
             return { 
               photoId: photo.id,
-              objects: nearbyObjects
+              objects: objects
             };
           } catch (error) {
             console.error(`Ошибка при проверке фото ${photo.name}:`, error);
@@ -444,7 +448,7 @@ export default function SafetyCheckPanel({
       setCheckedPhotos(newCheckedPhotos);
       
       // Если есть результаты, выбираем первую фотографию для отображения
-      if (newCheckedPhotos.size > 0) {
+      if (newCheckedPhotos.size > 0 && photos.length > 0) {
         const firstPhotoId = Array.from(newCheckedPhotos.keys())[0];
         const firstPhoto = photos.find(p => p.id === firstPhotoId);
         
@@ -455,7 +459,11 @@ export default function SafetyCheckPanel({
           // Обновляем состояние с объектами для отображения на карте
           const objects = newCheckedPhotos.get(firstPhotoId) || [];
           setSortedObjects(objects.sort((a, b) => a.distance - b.distance));
-          onRestrictedObjectsFound(objects);
+          
+          // Просто выводим для отладки список обнаруженных объектов
+          objects.forEach(obj => {
+            console.log(`Найден объект: ${obj.name} на расстоянии ${obj.distance} м`);
+          });
         }
       }
     } catch (error) {
