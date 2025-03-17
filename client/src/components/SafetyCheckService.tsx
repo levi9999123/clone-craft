@@ -93,17 +93,57 @@ export const ALTERNATIVE_TAGS = {
 export function determineObjectType(name: string): string[] {
   if (!name) return [];
   
-  name = name.toLowerCase();
+  // Нормализуем имя объекта
+  name = name.toLowerCase().trim();
   const matchedTypes: string[] = [];
   
+  // Проверяем наличие тегов OSM в имени
+  const osmTags = name.match(/[a-z_]+=[a-z0-9_]+/g) || [];
+  for (const tag of osmTags) {
+    const [key, value] = tag.split('=');
+    if (RESTRICTED_OBJECT_TYPES.includes(value)) {
+      matchedTypes.push(value);
+    }
+  }
+  
+  // Проверяем по расширенным ключевым словам
   Object.entries(ALTERNATIVE_TAGS).forEach(([type, keywords]) => {
     for (const keyword of keywords) {
-      if (name.includes(keyword.toLowerCase())) {
+      // Преобразуем ключевое слово в нижний регистр для сравнения
+      const lowercaseKeyword = keyword.toLowerCase();
+      
+      // Проверяем вхождение ключевого слова в имя объекта
+      if (name.includes(lowercaseKeyword)) {
         matchedTypes.push(type);
+        
+        // Добавляем человекочитаемое название, если это русское название
+        if (lowercaseKeyword !== type && /[а-яё]/.test(lowercaseKeyword)) {
+          matchedTypes.push(lowercaseKeyword);
+        }
         break;
       }
     }
   });
+  
+  // Если тип не определен, но есть теги OSM, попробуем определить по ним
+  if (matchedTypes.length === 0) {
+    // Дополнительная проверка по определенным характеристикам
+    if (name.includes('building')) return ['Здание'];
+    if (name.includes('house')) return ['Жилой дом'];
+    if (name.includes('amenity')) return ['Общественный объект'];
+    if (name.includes('shop')) return ['Магазин'];
+    if (name.includes('leisure')) return ['Зона отдыха'];
+    
+    // Если не смогли определить тип, но это похоже на объект OpenStreetMap
+    if (name.includes('osm') || name.includes('openstreetmap') || osmTags.length > 0) {
+      return ['Объект OpenStreetMap'];
+    }
+  }
+  
+  // Если не смогли определить тип, возвращаем общее название
+  if (matchedTypes.length === 0) {
+    return ['Не определен'];
+  }
   
   return matchedTypes;
 }

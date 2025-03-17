@@ -14,6 +14,7 @@ function generateOverpassQuery(lat: number, lon: number, radius: number = DEFAUL
   // Создаем запрос для получения различных типов объектов
   // ИСПРАВЛЕНО: Теперь ищем только way и relation (здания и территории)
   // В OSM границы территорий и зданий хранятся только в way и relation
+  // Также запрашиваем только центроиды и геометрию без лишних деталей для меньшего количества линий
   return `
     [out:json][timeout:60];
     (
@@ -131,17 +132,19 @@ function generateOverpassQuery(lat: number, lon: number, radius: number = DEFAUL
       way[name~"school|kindergarten|college|university|police|hospital|clinic|church|mosque|temple|government|administration|town hall|city hall",i](around:${safeRadius},${lat},${lon});
       relation[name~"school|kindergarten|college|university|police|hospital|clinic|church|mosque|temple|government|administration|town hall|city hall",i](around:${safeRadius},${lat},${lon});
     );
-    // Включаем информацию о центроидах для более точного расчета расстояний
-    out center body;
-    // Получаем геометрию для way и relation
+    // Включаем только информацию о центроидах для более точного расчета расстояний
+    // Ограничиваем количество результатов для уменьшения объема данных
+    out center body qt 100;
+    // Получаем только геометрию без лишних деталей
     >;
-    out center;
+    out center skel qt;
   `;
 }
 
-// Кэширование отключено по запросу пользователя
+// Кэширование через sessionStorage для ускорения работы
+// и уменьшения количества запросов к API
 
-// Функция для получения ближайших объектов - упрощенная версия без кэширования
+// Функция для получения ближайших объектов с кешированием результатов
 export async function fetchNearbyRestrictedObjects(lat: number, lon: number, radius: number = DEFAULT_SEARCH_RADIUS): Promise<NearbyObject[]> {
   try {
     // Проверка аргументов
@@ -152,6 +155,27 @@ export async function fetchNearbyRestrictedObjects(lat: number, lon: number, rad
     
     // Нормализуем радиус
     const safeRadius = Math.min(Math.max(50, radius), 500); // От 50 до 500 метров
+    
+    // Создаем уникальный ключ для кеширования результатов
+    const cacheKey = `${lat.toFixed(6)}_${lon.toFixed(6)}_${safeRadius}`;
+    
+    // Проверяем, есть ли результат в кеше (если включено кеширование)
+    const cachedResults = sessionStorage.getItem(cacheKey);
+    if (cachedResults) {
+      try {
+        const parsed = JSON.parse(cachedResults);
+        const cachedTimestamp = parsed.timestamp;
+        
+        // Если кеш не старше 15 минут, используем его
+        if (Date.now() - cachedTimestamp < 15 * 60 * 1000) {
+          console.log(`Используем кешированные данные для (${lat.toFixed(5)}, ${lon.toFixed(5)})`);
+          return parsed.objects;
+        }
+      } catch (e) {
+        console.warn('Ошибка при разборе кешированных данных:', e);
+        // Если ошибка парсинга, продолжаем с запросом API
+      }
+    }
     
     // Отправляем запрос к API
     const query = generateOverpassQuery(lat, lon, safeRadius);
@@ -228,6 +252,16 @@ export async function fetchNearbyRestrictedObjects(lat: number, lon: number, rad
       
       // Сортируем по расстоянию
       const sortedObjects = enrichedObjects.sort((a, b) => a.distance - b.distance);
+      
+      // Сохраняем результат в кеш
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          objects: sortedObjects,
+          timestamp: Date.now()
+        }));
+      } catch (e) {
+        console.warn('Ошибка при сохранении в кеш:', e);
+      }
       
       return sortedObjects;
     } catch (err: any) {

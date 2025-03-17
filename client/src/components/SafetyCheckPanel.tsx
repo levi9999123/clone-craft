@@ -349,7 +349,7 @@ export default function SafetyCheckPanel({
             ) : (
               <>
                 <i className="fas fa-shield-alt mr-2"></i>
-                <span>Выбрать фото</span>
+                <span>Проверить все фото</span>
               </>
             )}
           </Button>
