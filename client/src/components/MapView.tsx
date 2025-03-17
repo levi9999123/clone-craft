@@ -580,7 +580,7 @@ export default function MapView({
             }}
             onClick={onToggleNearbyPanel}
           >
-            <i className="fas fa-map-marked-alt mr-1"></i> Ближайшие
+            <i className="fas fa-map-marked-alt mr-1"></i> Близкие точки
           </button>
         </TooltipWrapper>
         
