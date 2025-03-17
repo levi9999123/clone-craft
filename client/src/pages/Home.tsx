@@ -4,6 +4,7 @@ import MapView from '@/components/MapView';
 import { usePhotoContext } from '@/context/PhotoContext';
 import NearbyPanel from '@/components/NearbyPanel';
 import DuplicatePanel from '@/components/DuplicatePanel';
+import QuickActionMenu from '@/components/QuickActionMenu';
 import PhotoModal from '@/components/modals/PhotoModal';
 import URLModal from '@/components/modals/URLModal';
 import CoordsModal from '@/components/modals/CoordsModal';
@@ -68,6 +69,42 @@ export default function Home() {
       {isPhotoModalOpen && <PhotoModal onClose={() => setIsPhotoModalOpen(false)} />}
       {isUrlModalOpen && <URLModal onClose={() => setIsUrlModalOpen(false)} />}
       {isCoordsModalOpen && <CoordsModal onClose={() => setIsCoordsModalOpen(false)} />}
+
+      {/* Меню быстрых действий */}
+      <QuickActionMenu 
+        actions={[
+          {
+            id: 'upload',
+            icon: 'fas fa-upload',
+            label: 'Загрузить фото',
+            tooltip: 'Загрузить новые фотографии',
+            onClick: () => setIsPhotoModalOpen(true)
+          },
+          {
+            id: 'url',
+            icon: 'fas fa-link',
+            label: 'Добавить URL',
+            tooltip: 'Загрузить фото по URL',
+            onClick: () => setIsUrlModalOpen(true)
+          },
+          {
+            id: 'coordinates',
+            icon: 'fas fa-map-pin',
+            label: 'Координаты',
+            tooltip: 'Добавить координаты вручную',
+            onClick: () => setIsCoordsModalOpen(true)
+          },
+          {
+            id: 'search',
+            icon: 'fas fa-search',
+            label: 'Поиск',
+            tooltip: 'Поиск фотографий',
+            onClick: () => document.querySelector('[title="Поиск фотографий"]')?.dispatchEvent(
+              new MouseEvent('click', { bubbles: true })
+            )
+          }
+        ]}
+      />
 
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
